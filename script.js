@@ -126,10 +126,12 @@ function drawGraph() {
   });
 
   const simulation = d3.forceSimulation([...nodes.values()])
-    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-500))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collision", d3.forceCollide().radius(15));
+    .force("link", d3.forceLink(links).id(d => d.id).distance(150).strength(0.2))
+    .force("charge", d3.forceManyBody().strength(-200).distanceMax(400))
+    .force("center", d3.forceCenter(width / 2, height / 2).strength(0.1))
+    .force("collision", d3.forceCollide().radius(18).strength(0.3))
+    .alphaDecay(0.005) // Much slower decay for gentler movement
+    .velocityDecay(0.6); // Higher damping for less bouncy behavior
 
   const link = container.selectAll("line")
     .data(links)
@@ -150,10 +152,16 @@ function drawGraph() {
     .style("fill", d => colorScheme[d.type] || colorScheme.default)
     .style("stroke", "#333")
     .style("stroke-width", "2px")
+    .style("cursor", "grab")
+    .style("user-select", "none")
     .call(d3.drag()
       .on("start", dragstarted)
       .on("drag", dragged)
-      .on("end", dragended));
+      .on("end", dragended))
+    .on("click", function(event, d) {
+      event.stopPropagation();
+      selectNode(d, this);
+    });
 
   // Add tooltips
   node.append("title")
@@ -174,37 +182,68 @@ function drawGraph() {
     .style("fill", "#333")
     .style("pointer-events", "none");
 
-  simulation.on("tick", () => {
-    link
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+  // Improved tick function with better performance
+  let animationId = null;
+  
+  simulation.on("tick", ticked);
 
-    node
-      .attr("cx", d => d.x)
-      .attr("cy", d => d.y);
+  function ticked() {
+    // Use requestAnimationFrame for smooth updates and avoid redundant calls
+    if (animationId) return;
+    
+    animationId = requestAnimationFrame(() => {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
 
-    labels
-      .attr("x", d => d.x + 12)
-      .attr("y", d => d.y + 4);
-  });
+      node
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+
+      labels
+        .attr("x", d => d.x + 12)
+        .attr("y", d => d.y + 4);
+        
+      animationId = null;
+    });
+  }
 
   function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
+    if (!event.active) simulation.alphaTarget(0.1).restart(); // Gentler restart
+    
     d.fx = d.x;
     d.fy = d.y;
+    
+    // Add visual feedback for dragging
+    d3.select(this)
+      .classed("dragging", true)
+      .style("stroke", "#ff6b6b")
+      .style("stroke-width", "3px");
   }
 
   function dragged(event, d) {
+    // Use the event's x and y which are already in the SVG coordinate space
     d.fx = event.x;
     d.fy = event.y;
   }
 
   function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
+    if (!event.active) simulation.alphaTarget(0.02); // Gentle settling instead of immediate stop
+    
+    // Keep node slightly fixed for smoother settling
+    setTimeout(() => {
+      d.fx = null;
+      d.fy = null;
+      simulation.alphaTarget(0);
+    }, 300);
+    
+    // Remove visual feedback
+    d3.select(this)
+      .classed("dragging", false)
+      .style("stroke", "#333")
+      .style("stroke-width", "2px");
   }
 
   // Add keyboard shortcuts for zoom
@@ -1112,4 +1151,198 @@ function formatTurtleValue(value) {
       return `"${value.value}"`;
   }
 }
+
+// Node selection and details panel functionality
+let selectedNode = null;
+let selectedElement = null;
+
+function selectNode(nodeData, element) {
+  // Clear previous selection
+  if (selectedElement) {
+    d3.select(selectedElement)
+      .classed("selected", false)
+      .style("stroke", "#333")
+      .style("stroke-width", "2px");
+  }
+
+  // Set new selection
+  selectedNode = nodeData;
+  selectedElement = element;
+  
+  // Highlight selected node
+  d3.select(element)
+    .classed("selected", true)
+    .style("stroke", "#007bff")
+    .style("stroke-width", "4px");
+
+  // Populate details panel
+  populateNodeDetails(nodeData);
+}  function populateNodeDetails(nodeData) {
+    const panel = document.getElementById('nodeDetailsPanel');
+    
+    // Extract node name from URI
+    const nodeName = nodeData.id.split('/').pop();
+    
+    // Get properties (literals) for this node
+    const properties = [];
+    const inboundRelations = [];
+    const outboundRelations = [];
+    
+    // Use the global variables to find relations
+    links.forEach(link => {
+      const predicateName = link.label ? link.label.split('/').pop().split('#').pop() : 'connected to';
+      
+      // Handle both string IDs and object references (after simulation starts)
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      
+      if (sourceId === nodeData.id) {
+        // Outbound relation
+        const targetName = targetId.split('/').pop();
+        outboundRelations.push({
+          predicate: predicateName,
+          target: targetName,
+          targetId: targetId
+        });
+      } else if (targetId === nodeData.id) {
+        // Inbound relation
+        const sourceName = sourceId.split('/').pop();
+        inboundRelations.push({
+          predicate: predicateName,
+          source: sourceName,
+          sourceId: sourceId
+        });
+      }
+    });
+
+    // Generate HTML for the panel
+    let html = `
+      <h3>${nodeName}</h3>
+      <div class="property-item">
+        <span class="property-label">Type:</span>
+        <span class="property-value">${nodeData.type}</span>
+      </div>
+      <div class="property-item">
+        <span class="property-label">URI:</span>
+        <span class="property-value" style="font-size: 11px; word-break: break-all;">${nodeData.id}</span>
+      </div>
+    `;
+
+    if (properties.length > 0) {
+      html += '<h4>Properties</h4><div class="property-list">';
+      properties.forEach(prop => {
+        html += `
+          <div class="property-item">
+            <span class="property-label">${prop.predicate}:</span>
+            <span class="property-value">${prop.value}</span>
+          </div>
+        `;
+      });
+      html += '</div>';
+    }
+
+    if (outboundRelations.length > 0) {
+      html += '<h4>Outbound Relations</h4><div class="property-list">';
+      outboundRelations.forEach(rel => {
+        html += `
+          <div class="relation-item" onclick="highlightNode('${rel.targetId}')">
+            <span class="relation-predicate">${rel.predicate}</span>
+            <span class="relation-target">→ ${rel.target}</span>
+          </div>
+        `;
+      });
+      html += '</div>';
+    }
+
+    if (inboundRelations.length > 0) {
+      html += '<h4>Inbound Relations</h4><div class="property-list">';
+      inboundRelations.forEach(rel => {
+        html += `
+          <div class="relation-item" onclick="highlightNode('${rel.sourceId}')">
+            <span class="relation-predicate">${rel.predicate}</span>
+            <span class="relation-target">${rel.source} →</span>
+          </div>
+        `;
+      });
+      html += '</div>';
+    }
+
+    if (outboundRelations.length === 0 && inboundRelations.length === 0) {
+      html += '<h4>Relations</h4><div class="no-selection">No relations found</div>';
+    }
+
+    panel.innerHTML = html;
+  }
+
+// Function to highlight and select a node by ID
+window.highlightNode = function(nodeId) {
+  const nodeData = nodes.get(nodeId);
+  if (nodeData) {
+    const nodeElement = container.selectAll("circle")
+      .filter(d => d.id === nodeId)
+      .node();
+    
+    if (nodeElement) {
+      selectNode(nodeData, nodeElement);
+      
+      // Animate to center the node
+      const transform = d3.zoomTransform(svg.node());
+      const [x, y] = [nodeData.x, nodeData.y];
+      
+      svg.transition()
+        .duration(500)
+        .call(zoom.transform, 
+          d3.zoomIdentity
+            .translate(width / 2 - x * transform.k, height / 2 - y * transform.k)
+            .scale(transform.k)
+        );
+    }
+  }
+};
+
+// Clear selection when clicking on empty space
+svg.on("click", function(event) {
+  if (event.target === this) {
+    if (selectedElement) {
+      d3.select(selectedElement)
+        .classed("selected", false)
+        .style("stroke", "#333")
+        .style("stroke-width", "2px");
+    }
+    selectedNode = null;
+    selectedElement = null;
+    
+    document.getElementById('nodeDetailsPanel').innerHTML = `
+      <div class="no-selection">
+        Click on a node to view its details
+      </div>
+    `;
+  }
+});
+
+// Add keyboard shortcuts for zoom
+d3.select("body").on("keydown", (event) => {
+  if (event.key === "r" || event.key === "R") {
+    // Reset zoom with 'R' key
+    svg.transition()
+      .duration(750)
+      .call(zoom.transform, d3.zoomIdentity);
+  } else if (event.key === "+" || event.key === "=") {
+    // Zoom in with '+' key
+    svg.transition()
+      .duration(200)
+      .call(zoom.scaleBy, 1.5);
+  } else if (event.key === "-" || event.key === "_") {
+    // Zoom out with '-' key
+    svg.transition()
+      .duration(200)
+      .call(zoom.scaleBy, 1 / 1.5);
+  }
+});
+
+// Add legend
+createLegend(svg);
+
+// Add instructions
+addInstructions(svg);
 

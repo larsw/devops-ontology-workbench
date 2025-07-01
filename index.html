@@ -26,6 +26,83 @@
       flex: 1;
       position: relative;
       min-height: 50vh;
+      display: flex;
+    }
+    .graph-main {
+      flex: 1;
+      position: relative;
+    }
+    .node-details-panel {
+      width: 300px;
+      background: #f8f9fa;
+      border-left: 2px solid #dee2e6;
+      padding: 15px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    .node-details-panel h3 {
+      margin: 0 0 10px 0;
+      padding: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 8px;
+    }
+    .node-details-panel h4 {
+      margin: 15px 0 8px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #6c757d;
+    }
+    .property-list {
+      margin-bottom: 20px;
+    }
+    .property-item {
+      display: flex;
+      margin-bottom: 8px;
+      padding: 6px 8px;
+      background: white;
+      border-radius: 4px;
+      border-left: 3px solid #007bff;
+    }
+    .property-label {
+      font-weight: 600;
+      min-width: 100px;
+      color: #495057;
+      margin-right: 10px;
+    }
+    .property-value {
+      color: #6c757d;
+      word-break: break-word;
+    }
+    .relation-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      padding: 6px 8px;
+      background: white;
+      border-radius: 4px;
+      border-left: 3px solid #28a745;
+      cursor: pointer;
+    }
+    .relation-item:hover {
+      background: #e9ecef;
+    }
+    .relation-predicate {
+      font-weight: 500;
+      color: #495057;
+      margin-right: 8px;
+    }
+    .relation-target {
+      color: #6c757d;
+      font-size: 13px;
+    }
+    .no-selection {
+      color: #6c757d;
+      font-style: italic;
+      text-align: center;
+      margin-top: 50px;
     }
     .query-container {
       flex: 1;
@@ -39,6 +116,7 @@
       background-color: #ffffff;
       border: 1px solid #dee2e6;
       cursor: grab;
+      display: block;
     }
     svg:active {
       cursor: grabbing;
@@ -50,12 +128,21 @@
       user-select: none;
     }
     .node { 
-      cursor: pointer;
-      transition: all 0.2s ease;
+      cursor: grab;
+      transition: stroke-width 0.1s ease, filter 0.1s ease;
+      user-select: none;
     }
     .node:hover {
       stroke-width: 3px !important;
       filter: brightness(1.1);
+    }
+    .node.dragging {
+      cursor: grabbing !important;
+      filter: brightness(1.2);
+    }
+    .node.selected {
+      stroke: #007bff !important;
+      stroke-width: 4px !important;
     }
     .link { 
       stroke: #999; 
@@ -138,8 +225,15 @@
 <body>
   <div class="container">
     <div class="graph-container">
-      <div class="title">DevOps Infrastructure Ontology Visualization</div>
-      <svg></svg>
+      <div class="graph-main">
+        <div class="title">DevOps Infrastructure Ontology Visualization</div>
+        <svg></svg>
+      </div>
+      <div class="node-details-panel" id="nodeDetailsPanel">
+        <div class="no-selection">
+          Click on a node to view its details
+        </div>
+      </div>
     </div>
     <div class="resize-handle" id="resizeHandle"></div>
     <div class="query-container">
