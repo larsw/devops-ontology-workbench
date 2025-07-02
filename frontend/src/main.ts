@@ -3,11 +3,13 @@
  * DevOps Ontology Workbench
  */
 import type { AppState } from './types.js';
+import { LazyLoader } from './lazy-loader.js';
+import { defaultPhysicsConfig } from './constants.js';
+// Core components loaded immediately
 import { DataLoader } from './data-loader.js';
 import { GraphVisualization } from './graph-visualization.js';
 import { UIComponents } from './ui-components.js';
 import { NodeDetails } from './node-details.js';
-import { SparqlInterface } from './sparql-interface.js';
 import { EventHandlers } from './event-handlers.js';
 import { ResizeHandlers } from './resize-handlers.js';
 
@@ -20,7 +22,7 @@ export class DevOpsOntologyWorkbench {
   private graphViz: GraphVisualization;
   private uiComponents: UIComponents;
   private nodeDetails: NodeDetails;
-  private sparqlInterface: SparqlInterface;
+  private sparqlInterface: any; // Loaded dynamically
   private eventHandlers: EventHandlers;
   private resizeHandlers: ResizeHandlers;
 
@@ -37,7 +39,9 @@ export class DevOpsOntologyWorkbench {
       globalWidth: 0,
       globalHeight: 0,
       selectedNode: null,
-      selectedElement: null
+      selectedElement: null,
+      currentLayout: 'force-directed',
+      physicsConfig: { ...defaultPhysicsConfig }
     };
 
     // Initialize components
@@ -45,7 +49,7 @@ export class DevOpsOntologyWorkbench {
     this.graphViz = new GraphVisualization();
     this.uiComponents = new UIComponents();
     this.nodeDetails = new NodeDetails(this.dataLoader);
-    this.sparqlInterface = new SparqlInterface();
+    this.sparqlInterface = null; // Will be loaded dynamically
     this.eventHandlers = new EventHandlers(this.uiComponents);
     this.resizeHandlers = new ResizeHandlers();
 
@@ -61,6 +65,9 @@ export class DevOpsOntologyWorkbench {
     try {
       console.log('🚀 Initializing DevOps Ontology Workbench...');
       if (debugDiv) debugDiv.innerHTML += '<br>🚀 Starting init...';
+
+      // Start preloading non-critical modules in background
+      LazyLoader.preloadNonCritical();
 
       // Load data
       console.log('🔄 Starting data load...');
@@ -90,12 +97,19 @@ export class DevOpsOntologyWorkbench {
       if (this.state.globalSvg) {
         this.uiComponents.createLegend(this.state.globalSvg);
         this.uiComponents.addInstructions(this.state.globalSvg);
+        this.uiComponents.createLayoutSelector(this.state.globalSvg, this.state.currentLayout, this.state.physicsConfig);
         console.log('🎛️ UI components added');
         if (debugDiv) debugDiv.innerHTML += '<br>🎛️ UI added';
       }
 
-      // Initialize SPARQL interface
+      // Initialize SPARQL interface dynamically
+      console.log('🔍 Loading SPARQL interface...');
+      if (debugDiv) debugDiv.innerHTML += '<br>🔍 Loading SPARQL...';
+      
+      const sparqlModule = await LazyLoader.loadSparqlInterface();
+      this.sparqlInterface = new sparqlModule.SparqlInterface();
       this.sparqlInterface.initializeSPARQL(this.state);
+      
       console.log('🔍 SPARQL interface initialized');
       if (debugDiv) debugDiv.innerHTML += '<br>🔍 SPARQL ready';
 
@@ -129,6 +143,19 @@ export class DevOpsOntologyWorkbench {
     this.graphViz.setNodeClickHandler((event, nodeData, element) => {
       this.nodeDetails.selectNode(this.state, nodeData, element);
     });
+
+    // Set up layout change handler
+    this.uiComponents.setLayoutChangeHandler((newLayout) => {
+      this.graphViz.changeLayout(this.state, newLayout);
+      this.uiComponents.updateLayoutSelector(this.state.globalSvg, newLayout, this.state.physicsConfig);
+    });
+
+    // Set up physics change handler
+    this.uiComponents.setPhysicsChangeHandler((newConfig) => {
+      this.state.physicsConfig = newConfig;
+      // Re-apply the current layout with new physics
+      this.graphViz.changeLayout(this.state, this.state.currentLayout);
+    });
   }
 
   /**
@@ -142,6 +169,7 @@ export class DevOpsOntologyWorkbench {
       // Re-add UI components
       this.uiComponents.createLegend(this.state.globalSvg);
       this.uiComponents.addInstructions(this.state.globalSvg);
+      this.uiComponents.createLayoutSelector(this.state.globalSvg, this.state.currentLayout, this.state.physicsConfig);
     }
   }
 

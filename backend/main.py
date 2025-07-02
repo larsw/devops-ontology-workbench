@@ -4,6 +4,7 @@ FastAPI backend for DevOps Ontology SPARQL queries
 """
 
 from typing import Dict, Any, Union, Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Form, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -16,16 +17,11 @@ import json
 import os
 from pathlib import Path
 
-app = FastAPI(title="DevOps Ontology SPARQL Server")
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Get the directory paths
+BACKEND_DIR = Path(__file__).parent
+PROJECT_DIR = BACKEND_DIR.parent
+FRONTEND_DIST_DIR = PROJECT_DIR / "frontend" / "dist"
+ONTOLOGIES_DIR = BACKEND_DIR / "ontologies"
 
 # Create an in-memory RDF graph
 graph = Graph()
@@ -41,21 +37,70 @@ graph.bind("ex", EX)
 graph.bind("dct", DCT)
 
 def load_ttl_data() -> None:
-    """Load the TTL file into the RDF graph"""
-    ttl_file = Path("sample.ttl")
-    if ttl_file.exists():
+    """Load TTL files from the ontologies directory into the RDF graph"""
+    
+    # Load sample data if it exists
+    sample_file = Path("sample.ttl")
+    if sample_file.exists():
         try:
-            graph.parse(ttl_file, format="turtle")
-            print(f"Loaded {len(graph)} triples from {ttl_file}")
+            graph.parse(sample_file, format="turtle")
+            print(f"✅ Loaded sample data: {sample_file}")
         except Exception as e:
-            print(f"Error loading TTL file: {e}")
+            print(f"❌ Error loading sample file: {e}")
+    
+    # Load all ontology files from the ontologies directory
+    if ONTOLOGIES_DIR.exists():
+        ttl_files = list(ONTOLOGIES_DIR.glob("*.ttl"))
+        if ttl_files:
+            for ttl_file in ttl_files:
+                try:
+                    graph.parse(ttl_file, format="turtle")
+                    print(f"✅ Loaded ontology: {ttl_file.name}")
+                except Exception as e:
+                    print(f"❌ Error loading {ttl_file.name}: {e}")
+            print(f"📊 Total triples loaded: {len(graph)}")
+        else:
+            print(f"⚠️  No .ttl files found in {ONTOLOGIES_DIR}")
     else:
-        print(f"TTL file {ttl_file} not found")
+        print(f"❌ Ontologies directory not found: {ONTOLOGIES_DIR}")
+        
+    # Load sample data from frontend if it exists 
+    frontend_sample = FRONTEND_DIST_DIR / "sample.ttl"
+    if frontend_sample.exists():
+        try:
+            graph.parse(frontend_sample, format="turtle")
+            print(f"✅ Loaded frontend sample: {frontend_sample}")
+        except Exception as e:
+            print(f"❌ Error loading frontend sample: {e}")
 
-@app.on_event("startup")
-async def startup_event():
-    """Load RDF data on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("🚀 Starting DevOps Ontology SPARQL Server...")
     load_ttl_data()
+    print("✅ Server startup complete")
+    yield
+    # Shutdown
+    print("🛑 Shutting down server...")
+
+app = FastAPI(title="DevOps Ontology SPARQL Server", lifespan=lifespan)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount static files for frontend assets
+if FRONTEND_DIST_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST_DIR / "assets")), name="static")
+    print(f"✅ Mounted frontend assets from: {FRONTEND_DIST_DIR / 'assets'}")
+else:
+    print(f"⚠️  Frontend dist directory not found: {FRONTEND_DIST_DIR}")
+    print("   Run 'cd frontend && bun run build' to build the frontend")
 
 @app.get("/health")
 async def health_check():
@@ -65,7 +110,15 @@ async def health_check():
 @app.get("/", response_class=HTMLResponse)
 async def serve_index() -> HTMLResponse:
     """Serve the main HTML file"""
-    with open("index.html", "r") as f:
+    index_path = FRONTEND_DIST_DIR / "index.html"
+    
+    if not index_path.exists():
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Frontend not built. Please run: cd frontend && bun run build"
+        )
+    
+    with open(index_path, "r") as f:
         content = f.read()
     return HTMLResponse(content=content)
 

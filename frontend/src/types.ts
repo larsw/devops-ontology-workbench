@@ -43,6 +43,8 @@ export interface AppState {
   globalHeight: number;
   selectedNode: NodeData | null;
   selectedElement: any;
+  currentLayout: GraphLayoutType;
+  physicsConfig: PhysicsConfig;
 }
 
 // Event handler function types
@@ -76,4 +78,41 @@ export interface GraphConfig {
 
 export interface ColorScheme {
   [key: string]: string;
+}
+
+// Graph layout types
+export type GraphLayoutType = 
+  | 'force-directed'
+  | 'manual'
+  | 'circular' 
+  | 'hierarchical' 
+  | 'grid' 
+  | 'radial'
+  | 'tree';
+
+export interface LayoutConfig {
+  type: GraphLayoutType;
+  name: string;
+  description: string;
+}
+
+// Physics configuration for force-directed layouts
+export interface PhysicsConfig {
+  linkDistance: number;
+  linkStrength: number;
+  chargeStrength: number;
+  centerStrength: number;
+  collisionRadius: number;
+  collisionStrength: number;
+  alphaDecay: number;
+  velocityDecay: number;
+}
+
+export interface PhysicsControl {
+  key: keyof PhysicsConfig;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  default: number;
 }

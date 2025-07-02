@@ -209,7 +209,7 @@ export class SparqlInterface {
     };
     
     if (Yasr.plugins) {
-      Yasr.plugins.jsonld = JsonLdPlugin;
+      (Yasr.plugins as any).jsonld = JsonLdPlugin;
     }
   }
 
@@ -237,7 +237,7 @@ export class SparqlInterface {
     };
     
     if (Yasr.plugins) {
-      Yasr.plugins.turtle = TurtlePlugin;
+      (Yasr.plugins as any).turtle = TurtlePlugin;
     }
   }
 
@@ -265,7 +265,7 @@ export class SparqlInterface {
     };
     
     if (Yasr.plugins) {
-      Yasr.plugins.trig = TrigPlugin;
+      (Yasr.plugins as any).trig = TrigPlugin;
     }
   }
 }

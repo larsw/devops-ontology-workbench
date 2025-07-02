@@ -2,11 +2,14 @@
  * Graph visualization using D3.js
  */
 import * as d3 from 'd3';
-import type { NodeData, LinkData, AppState, NodeClickHandler } from './types.js';
+import type { NodeData, LinkData, AppState, NodeClickHandler, GraphLayoutType } from './types.js';
 import { colorScheme, getNodeRadius } from './constants.js';
+import { GraphLayouts } from './graph-layouts.js';
 
 export class GraphVisualization {
   private onNodeClick?: NodeClickHandler;
+  private currentSimulation?: d3.Simulation<NodeData, undefined>;
+  private currentState?: AppState;
 
   /**
    * Set the node click handler
@@ -19,6 +22,7 @@ export class GraphVisualization {
    * Draw the main graph visualization
    */
   drawGraph(state: AppState): void {
+    this.currentState = state; // Store state reference for drag behavior
     console.log('🎨 Starting drawGraph method...');
     console.log('📊 State nodes count:', state.nodes.size);
     console.log('📊 State links count:', state.links.length);
@@ -67,6 +71,7 @@ export class GraphVisualization {
 
     // Create simulation
     const simulation = this.createSimulation(state, width, height);
+    this.currentSimulation = simulation;
 
     // Create links
     const link = container.selectAll("line")
@@ -125,16 +130,17 @@ export class GraphVisualization {
   }
 
   /**
-   * Create D3 force simulation
+   * Create D3 force simulation using the specified layout
    */
   private createSimulation(state: AppState, width: number, height: number): d3.Simulation<NodeData, undefined> {
-    return d3.forceSimulation(Array.from(state.nodes.values()))
-      .force("link", d3.forceLink(state.links).id((d: any) => d.id).distance(150).strength(0.2))
-      .force("charge", d3.forceManyBody().strength(-200).distanceMax(400))
-      .force("center", d3.forceCenter(width / 2, height / 2).strength(0.1))
-      .force("collision", d3.forceCollide().radius(18).strength(0.3))
-      .alphaDecay(0.005)
-      .velocityDecay(0.6);
+    return GraphLayouts.createLayoutSimulation(
+      state.currentLayout,
+      Array.from(state.nodes.values()),
+      state.links,
+      width,
+      height,
+      state.physicsConfig
+    );
   }
 
   /**
@@ -243,11 +249,20 @@ export class GraphVisualization {
 
     const dragended = (event: any, d: NodeData) => {
       if (!event.active) simulation.alphaTarget(0.02);
-      setTimeout(() => {
-        d.fx = null;
-        d.fy = null;
+      
+      // Check if we're in manual mode
+      if (this.currentState && this.currentState.currentLayout === 'manual') {
+        // In manual mode, keep nodes fixed where user dragged them
+        // Don't reset fx/fy to null
         simulation.alphaTarget(0);
-      }, 300);
+      } else {
+        // In other modes, release the node after a short delay
+        setTimeout(() => {
+          d.fx = null;
+          d.fy = null;
+          simulation.alphaTarget(0);
+        }, 300);
+      }
       
       d3.select(event.sourceEvent.target)
         .classed("dragging", false)
@@ -315,5 +330,42 @@ export class GraphVisualization {
           );
       }
     }
+  }
+
+  /**
+   * Change the graph layout and redraw
+   */
+  changeLayout(state: AppState, newLayout: GraphLayoutType): void {
+    this.currentState = state; // Update state reference
+    console.log('🔄 Changing layout to:', newLayout);
+    
+    state.currentLayout = newLayout;
+    
+    // Stop current simulation
+    if (this.currentSimulation) {
+      this.currentSimulation.stop();
+    }
+    
+    // Get current container dimensions
+    const width = state.globalWidth;
+    const height = state.globalHeight;
+    
+    // Create new simulation with the new layout
+    const newSimulation = this.createSimulation(state, width, height);
+    this.currentSimulation = newSimulation;
+    
+    // Get existing elements
+    const container = state.globalContainer;
+    const link = container.selectAll("line");
+    const node = container.selectAll("circle");
+    const labels = container.selectAll("text.node-label");
+    
+    // Set up tick function with new simulation
+    this.setupTick(newSimulation, link, node, labels);
+    
+    // Set up drag behavior with new simulation
+    this.setupDragBehavior(node, newSimulation);
+    
+    console.log('✅ Layout changed successfully');
   }
 }

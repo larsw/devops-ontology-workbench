@@ -1,7 +1,7 @@
 /**
  * Constants and configuration for the DevOps Ontology Workbench
  */
-import type { ColorScheme, GraphConfig } from './types.js';
+import type { ColorScheme, GraphConfig, LayoutConfig, PhysicsConfig, PhysicsControl } from './types.js';
 
 // Color scheme for different concept types
 export const colorScheme: ColorScheme = {
@@ -131,3 +131,106 @@ export const commonPrefixes = {
   'foaf': 'http://xmlns.com/foaf/0.1/',
   'skos': 'http://www.w3.org/2004/02/skos/core#'
 };
+
+// Available graph layout configurations
+export const availableLayouts: LayoutConfig[] = [
+  {
+    type: 'force-directed',
+    name: 'Force-Directed',
+    description: 'Nodes are positioned by simulated physical forces'
+  },
+  {
+    type: 'manual',
+    name: 'Manual',
+    description: 'Initial force layout, then manually position nodes'
+  },
+  {
+    type: 'circular',
+    name: 'Circular',
+    description: 'Nodes are arranged in a circle'
+  },
+  {
+    type: 'hierarchical',
+    name: 'Hierarchical',
+    description: 'Nodes are arranged in layers based on relationships'
+  },
+  {
+    type: 'grid',
+    name: 'Grid',
+    description: 'Nodes are arranged in a regular grid pattern'
+  },
+  {
+    type: 'radial',
+    name: 'Radial',
+    description: 'Nodes are arranged in concentric circles by type'
+  },
+  {
+    type: 'tree',
+    name: 'Tree',
+    description: 'Nodes are arranged in a tree structure'
+  }
+];
+
+// Default physics configuration
+export const defaultPhysicsConfig: PhysicsConfig = {
+  linkDistance: 150,
+  linkStrength: 0.2,
+  chargeStrength: -200,
+  centerStrength: 0.1,
+  collisionRadius: 18,
+  collisionStrength: 0.3,
+  alphaDecay: 0.005,
+  velocityDecay: 0.6
+};
+
+// Physics controls configuration
+export const physicsControls: PhysicsControl[] = [
+  {
+    key: 'linkDistance',
+    label: 'Link Distance',
+    min: 50,
+    max: 300,
+    step: 10,
+    default: 150
+  },
+  {
+    key: 'linkStrength',
+    label: 'Link Strength',
+    min: 0,
+    max: 1,
+    step: 0.1,
+    default: 0.2
+  },
+  {
+    key: 'chargeStrength',
+    label: 'Repulsion Force',
+    min: -500,
+    max: -50,
+    step: 10,
+    default: -200
+  },
+  {
+    key: 'centerStrength',
+    label: 'Center Force',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    default: 0.1
+  },
+  {
+    key: 'collisionRadius',
+    label: 'Node Spacing',
+    min: 5,
+    max: 50,
+    step: 1,
+    default: 18
+  },
+  {
+    key: 'collisionStrength',
+    label: 'Collision Force',
+    min: 0,
+    max: 1,
+    step: 0.1,
+    default: 0.3
+  }
+];

@@ -395,4 +395,106 @@ text {
   background: #545b62;
 }
 
+/* Layout Controls Styles */
+.layout-controls {
+  pointer-events: all;
+  user-select: none;
+  /* Ensure it stays on top of other elements */
+  z-index: 1000;
+}
+
+.layout-controls .controls-background {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.layout-controls .layout-button {
+  cursor: pointer;
+  /* Removed problematic transitions and transforms */
+}
+
+.layout-controls .layout-button rect {
+  /* Keep rect transitions for smooth color changes */
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+
+.layout-controls .layout-button text {
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 500;
+}
+
+/* SVG Graph Styles */
+svg {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Ensure layout controls are positioned properly */
+.graph-main svg .layout-controls {
+  position: relative;
+}
+
+/* Physics Controls Styles */
+.layout-controls .slider-track {
+  transition: fill 0.2s ease;
+}
+
+.layout-controls .slider-track:hover {
+  fill: #bbb !important;
+}
+
+.layout-controls .slider-handle {
+  transition: all 0.2s ease;
+}
+
+.layout-controls .slider-handle:hover {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)) !important;
+  transform: scale(1.1);
+}
+
+/* Keep existing range input styles for fallback */
+.layout-controls input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.layout-controls input[type="range"]:hover {
+  opacity: 1;
+}
+
+.layout-controls input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4ecdc4;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.layout-controls input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4ecdc4;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.layout-controls input[type="range"]::-ms-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4ecdc4;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
 
