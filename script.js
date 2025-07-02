@@ -291,7 +291,7 @@ function drawGraph() {
       .style("stroke-width", "2px");
   }
 
-  // Add keyboard shortcuts for zoom
+  // Add keyboard shortcuts for zoom and panel controls
   d3.select("body").on("keydown", (event) => {
     if (event.key === "r" || event.key === "R") {
       // Reset zoom with 'R' key
@@ -308,6 +308,18 @@ function drawGraph() {
       svg.transition()
         .duration(200)
         .call(zoom.scaleBy, 1 / 1.5);
+    } else if (event.key === "l" || event.key === "L") {
+      // Toggle legend with 'L' key
+      toggleLegend();
+    } else if (event.key === "i" || event.key === "I") {
+      // Toggle instructions with 'I' key
+      toggleInstructions();
+    } else if (event.key === "p" || event.key === "P") {
+      // Toggle right panel with 'P' key
+      togglePanel('nodeDetailsPanel');
+    } else if (event.key === "q" || event.key === "Q") {
+      // Toggle query panel with 'Q' key
+      togglePanel('queryContainer');
     }
   });
 
@@ -329,7 +341,11 @@ function addInstructions(svg) {
     "🎯 Drag nodes to reposition", 
     "📍 Click 'Reset Zoom' or press R",
     "⌨️ Use +/- keys to zoom",
-    "📊 Use SPARQL panel below to query data"
+    "📊 Use SPARQL panel below to query data",
+    "🔤 Press L to toggle legend",
+    "ℹ️ Press I to toggle instructions",
+    "📋 Press P to toggle details panel",
+    "🔍 Press Q to toggle query panel"
   ];
 
   const instructionItems = instructions.selectAll(".instruction-item")
@@ -441,22 +457,22 @@ SELECT ?subject ?type ?identifier WHERE {
 } 
 LIMIT 20`);
 
-  // Add sample queries
-  addSampleQueries();
+  // Add sample queries after a short delay to ensure Yasgui is fully initialized
+  setTimeout(() => {
+    addSampleQueries();
+    addCustomTabButtons();
+  }, 500);
 }
 
 function addSampleQueries() {
-  // Check if sample queries are already added to avoid duplicates
-  const existingTabs = yasgui.getTabNames();
-  const sampleQueryNames = ["Servers & VMs", "Applications", "Dependencies"];
+  console.log("addSampleQueries called");
   
-  // Only add sample queries if they don't already exist
-  const needsToAddQueries = sampleQueryNames.some(name => !existingTabs.includes(name));
-  if (!needsToAddQueries) {
-    return; // Sample queries already exist, don't add duplicates
+  // Check if yasgui is properly initialized
+  if (!yasgui) {
+    console.error("Yasgui not initialized");
+    return;
   }
-
-  // Add some sample queries as tabs
+  
   const sampleQueries = [
     {
       name: "Servers & VMs",
@@ -495,24 +511,167 @@ SELECT ?source ?target ?relation WHERE {
     }
   ];
 
+  console.log("Attempting to add", sampleQueries.length, "sample queries");
+
   sampleQueries.forEach((sample, index) => {
-    // Only add if this specific tab doesn't exist
-    if (!existingTabs.includes(sample.name)) {
-      yasgui.addTab(true, { 
-        name: sample.name,
-        requestConfig: {
-          endpoint: "http://localhost:8000/sparql",
-          method: "POST"
+    setTimeout(() => {
+      try {
+        console.log(`Adding tab: ${sample.name}`);
+        
+        // Try the simplest approach first
+        yasgui.addTab();
+        const currentTab = yasgui.getTab();
+        
+        if (currentTab && currentTab.yasqe) {
+          currentTab.yasqe.setValue(sample.query);
+          console.log(`Successfully added sample query tab: ${sample.name}`);
+        } else {
+          console.error(`Failed to get current tab for: ${sample.name}`);
         }
-      });
-      const currentTab = yasgui.getTab();
-      currentTab.yasqe.setValue(sample.query);
-    }
+      } catch (error) {
+        console.error(`Error adding sample query tab ${sample.name}:`, error);
+      }
+    }, index * 200); // Stagger the tab creation
   });
+
+  console.log("Finished setting up sample queries");
+}
+
+function addCustomTabButtons() {
+  console.log("Adding custom tab buttons as fallback");
+  
+  // Find the yasgui container
+  const yasguiContainer = document.getElementById("yasgui");
+  if (!yasguiContainer) {
+    console.error("Yasgui container not found");
+    return;
+  }
+  
+  // Create a custom tab bar above yasgui
+  const customTabBar = document.createElement('div');
+  customTabBar.id = 'custom-sample-tabs';
+  customTabBar.style.cssText = `
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-bottom: none;
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  `;
+  
+  const sampleQueries = [
+    {
+      name: "Servers & VMs",
+      query: `PREFIX devops: <https://w3id.org/devops-infra/>
+PREFIX ex: <https://example.org/devops/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT ?server ?type ?identifier WHERE {
+  ?server a ?type .
+  ?server dct:identifier ?identifier .
+  FILTER(CONTAINS(STR(?type), "Server"))
+}`
+    },
+    {
+      name: "Applications",
+      query: `PREFIX devops: <https://w3id.org/devops-infra/>
+PREFIX ex: <https://example.org/devops/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT ?app ?identifier ?version WHERE {
+  ?app a devops:Application .
+  ?app dct:identifier ?identifier .
+  OPTIONAL { ?app devops:hasVersion ?version }
+}`
+    },
+    {
+      name: "Dependencies",
+      query: `PREFIX devops: <https://w3id.org/devops-infra/>
+PREFIX ex: <https://example.org/devops/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT ?source ?target ?relation WHERE {
+  ?source ?relation ?target .
+  FILTER(?relation IN (devops:dependsOn, devops:deployedOn, devops:hostedOn))
+}`
+    }
+  ];
+  
+  // Create buttons for each sample query
+  sampleQueries.forEach((sample, index) => {
+    const button = document.createElement('button');
+    button.textContent = sample.name;
+    button.style.cssText = `
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background-color 0.2s;
+    `;
+    
+    button.onmouseover = () => button.style.background = '#0056b3';
+    button.onmouseout = () => button.style.background = '#007bff';
+    
+    button.onclick = () => {
+      if (yasgui && yasgui.getTab() && yasgui.getTab().yasqe) {
+        yasgui.getTab().yasqe.setValue(sample.query);
+        console.log(`Loaded sample query: ${sample.name}`);
+      } else {
+        console.error("Could not load sample query - Yasgui not properly initialized");
+      }
+    };
+    
+    customTabBar.appendChild(button);
+  });
+  
+  // Add a reset button
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'Reset Query';
+  resetButton.style.cssText = `
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 16px;
+    transition: background-color 0.2s;
+  `;
+  
+  resetButton.onmouseover = () => resetButton.style.background = '#545b62';
+  resetButton.onmouseout = () => resetButton.style.background = '#6c757d';
+  
+  resetButton.onclick = () => {
+    if (yasgui && yasgui.getTab() && yasgui.getTab().yasqe) {
+      yasgui.getTab().yasqe.setValue(`PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX devops: <https://w3id.org/devops-infra/>
+PREFIX ex: <https://example.org/devops/>
+
+SELECT ?subject ?type ?identifier WHERE {
+  ?subject a ?type .
+  OPTIONAL { ?subject dct:identifier ?identifier }
+} 
+LIMIT 20`);
+      console.log("Reset to default query");
+    }
+  };
+  
+  customTabBar.appendChild(resetButton);
+  
+  // Insert the custom tab bar before the yasgui container
+  yasguiContainer.parentNode.insertBefore(customTabBar, yasguiContainer);
+  
+  console.log("Custom tab buttons added successfully");
 }
 
 // Add resize functionality for the panels
 function initializeResize() {
+  // Horizontal resize handle for bottom panel
   const resizeHandle = document.getElementById('resizeHandle');
   const graphContainer = document.querySelector('.graph-container');
   const queryContainer = document.querySelector('.query-container');
@@ -520,28 +679,60 @@ function initializeResize() {
 
   resizeHandle.addEventListener('mousedown', (e) => {
     isResizing = true;
-    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mousemove', handleHorizontalResize);
     document.addEventListener('mouseup', stopResize);
     e.preventDefault();
   });
 
-  function handleResize(e) {
+  function handleHorizontalResize(e) {
     if (!isResizing) return;
     
     const containerHeight = document.querySelector('.container').clientHeight;
     const newGraphHeight = e.clientY;
     const newQueryHeight = containerHeight - newGraphHeight - resizeHandle.clientHeight;
     
-    if (newGraphHeight > 200 && newQueryHeight > 200) {
+    if (newGraphHeight > 200 && newQueryHeight > 100) {
       graphContainer.style.flex = `0 0 ${newGraphHeight}px`;
       queryContainer.style.flex = `0 0 ${newQueryHeight}px`;
     }
   }
 
+  // Vertical resize handle for right panel
+  const verticalResizeHandle = document.getElementById('verticalResizeHandle');
+  const graphMain = document.querySelector('.graph-main');
+  const nodeDetailsPanel = document.querySelector('.node-details-panel');
+  let isVerticalResizing = false;
+
+  verticalResizeHandle.addEventListener('mousedown', (e) => {
+    isVerticalResizing = true;
+    document.addEventListener('mousemove', handleVerticalResize);
+    document.addEventListener('mouseup', stopVerticalResize);
+    e.preventDefault();
+  });
+
+  function handleVerticalResize(e) {
+    if (!isVerticalResizing) return;
+    
+    const containerWidth = graphContainer.clientWidth;
+    const newMainWidth = e.clientX;
+    const newPanelWidth = containerWidth - newMainWidth - verticalResizeHandle.clientWidth;
+    
+    if (newMainWidth > 300 && newPanelWidth > 200) {
+      graphMain.style.flex = `0 0 ${newMainWidth}px`;
+      nodeDetailsPanel.style.width = `${newPanelWidth}px`;
+    }
+  }
+
   function stopResize() {
     isResizing = false;
-    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mousemove', handleHorizontalResize);
     document.removeEventListener('mouseup', stopResize);
+  }
+
+  function stopVerticalResize() {
+    isVerticalResizing = false;
+    document.removeEventListener('mousemove', handleVerticalResize);
+    document.removeEventListener('mouseup', stopVerticalResize);
   }
 }
 
@@ -1223,7 +1414,7 @@ function selectNode(nodeData, element) {
   // Populate details panel
   populateNodeDetails(nodeData);
 }  function populateNodeDetails(nodeData) {
-    const panel = document.getElementById('nodeDetailsPanel');
+    const panel = document.getElementById('nodeDetailsContent');
     
     // Extract node name from URI
     const nodeName = nodeData.id.split('/').pop();
@@ -1342,31 +1533,11 @@ svg.on("click", function(event) {
     selectedNode = null;
     selectedElement = null;
     
-    document.getElementById('nodeDetailsPanel').innerHTML = `
+    document.getElementById('nodeDetailsContent').innerHTML = `
       <div class="no-selection">
         Click on a node to view its details
       </div>
     `;
-  }
-});
-
-// Add keyboard shortcuts for zoom
-d3.select("body").on("keydown", (event) => {
-  if (event.key === "r" || event.key === "R") {
-    // Reset zoom with 'R' key
-    svg.transition()
-      .duration(750)
-      .call(zoom.transform, d3.zoomIdentity);
-  } else if (event.key === "+" || event.key === "=") {
-    // Zoom in with '+' key
-    svg.transition()
-      .duration(200)
-      .call(zoom.scaleBy, 1.5);
-  } else if (event.key === "-" || event.key === "_") {
-    // Zoom out with '-' key
-    svg.transition()
-      .duration(200)
-      .call(zoom.scaleBy, 1 / 1.5);
   }
 });
 
@@ -1375,4 +1546,53 @@ createLegend(svg);
 
 // Add instructions
 addInstructions(svg);
+
+// Panel management functions
+function togglePanel(panelId) {
+  const panel = document.getElementById(panelId);
+  const toggleButton = document.getElementById(panelId + 'Toggle');
+  
+  if (panel.classList.contains('collapsed')) {
+    panel.classList.remove('collapsed');
+    if (panelId === 'nodeDetailsPanel') {
+      toggleButton.textContent = '⟨';
+    } else if (panelId === 'queryContainer') {
+      toggleButton.textContent = '⌄';
+    }
+  } else {
+    panel.classList.add('collapsed');
+    if (panelId === 'nodeDetailsPanel') {
+      toggleButton.textContent = '⟩';
+    } else if (panelId === 'queryContainer') {
+      toggleButton.textContent = '⌃';
+    }
+  }
+}
+
+// Legend and instructions visibility
+let legendVisible = true;
+let instructionsVisible = true;
+
+function toggleLegend() {
+  const legend = document.querySelector('.legend');
+  if (legend) {
+    legendVisible = !legendVisible;
+    legend.classList.toggle('hidden', !legendVisible);
+    console.log(`Legend ${legendVisible ? 'shown' : 'hidden'}`);
+  }
+}
+
+function toggleInstructions() {
+  const instructions = document.querySelector('.instructions');
+  if (instructions) {
+    instructionsVisible = !instructionsVisible;
+    instructions.classList.toggle('hidden', !instructionsVisible);
+    console.log(`Instructions ${instructionsVisible ? 'shown' : 'hidden'}`);
+  }
+}
+
+// Make functions globally accessible
+window.togglePanel = togglePanel;
+window.toggleLegend = toggleLegend;
+window.toggleInstructions = toggleInstructions;
 

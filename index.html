@@ -36,9 +36,19 @@
       width: 300px;
       background: #f8f9fa;
       border-left: 2px solid #dee2e6;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.3s ease;
+    }
+    .node-details-panel.collapsed {
+      width: 0;
+      overflow: hidden;
+    }
+    .node-details-content {
       padding: 15px;
       overflow-y: auto;
-      font-size: 14px;
+      flex: 1;
     }
     .node-details-panel h3 {
       margin: 0 0 10px 0;
@@ -109,6 +119,21 @@
       border-top: 2px solid #dee2e6;
       background-color: white;
       min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      transition: height 0.3s ease;
+    }
+    .query-container.collapsed {
+      height: 40px;
+      min-height: 40px;
+      flex: 0 0 40px;
+    }
+    .query-content {
+      flex: 1;
+      overflow: hidden;
+    }
+    .query-container.collapsed .query-content {
+      display: none;
     }
     svg { 
       width: 100%; 
@@ -151,9 +176,23 @@
     }
     .legend {
       pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .legend.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
     .legend text {
       font-weight: 500;
+    }
+    .instructions {
+      pointer-events: none;
+      user-select: none;
+      transition: opacity 0.3s ease;
+    }
+    .instructions.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
     .title {
       position: absolute;
@@ -169,6 +208,33 @@
       color: #333;
       z-index: 1000;
     }
+    .panel-header {
+      background: #e9ecef;
+      border-bottom: 1px solid #dee2e6;
+      padding: 8px 12px;
+      font-weight: 600;
+      color: #495057;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .panel-header:hover {
+      background: #d4edda;
+    }
+    .collapse-button {
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: background-color 0.2s;
+    }
+    .collapse-button:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
     .resize-handle {
       height: 6px;
       background: #dee2e6;
@@ -176,6 +242,7 @@
       border-top: 1px solid #adb5bd;
       border-bottom: 1px solid #adb5bd;
       position: relative;
+      transition: background-color 0.2s;
     }
     .resize-handle:hover {
       background: #adb5bd;
@@ -190,6 +257,19 @@
       height: 2px;
       background: #6c757d;
       border-radius: 1px;
+    }
+    .resize-handle.vertical {
+      width: 6px;
+      height: 100%;
+      cursor: col-resize;
+      border-left: 1px solid #adb5bd;
+      border-right: 1px solid #adb5bd;
+      border-top: none;
+      border-bottom: none;
+    }
+    .resize-handle.vertical::after {
+      width: 2px;
+      height: 30px;
     }
     #yasgui {
       height: 100%;
@@ -229,15 +309,28 @@
         <div class="title">DevOps Infrastructure Ontology Visualization</div>
         <svg></svg>
       </div>
+      <div class="resize-handle vertical" id="verticalResizeHandle"></div>
       <div class="node-details-panel" id="nodeDetailsPanel">
-        <div class="no-selection">
-          Click on a node to view its details
+        <div class="panel-header" onclick="togglePanel('nodeDetailsPanel')">
+          <span>Node Details</span>
+          <button class="collapse-button" id="nodeDetailsPanelToggle">⟨</button>
+        </div>
+        <div class="node-details-content" id="nodeDetailsContent">
+          <div class="no-selection">
+            Click on a node to view its details
+          </div>
         </div>
       </div>
     </div>
     <div class="resize-handle" id="resizeHandle"></div>
-    <div class="query-container">
-      <div id="yasgui"></div>
+    <div class="query-container" id="queryContainer">
+      <div class="panel-header" onclick="togglePanel('queryContainer')">
+        <span>SPARQL Query Interface</span>
+        <button class="collapse-button" id="queryContainerToggle">⌄</button>
+      </div>
+      <div class="query-content" id="queryContent">
+        <div id="yasgui"></div>
+      </div>
     </div>
   </div>
   <script src="script.js"></script>

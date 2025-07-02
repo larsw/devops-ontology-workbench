@@ -6,7 +6,7 @@ FastAPI backend for DevOps Ontology SPARQL queries
 from typing import Dict, Any, Union, Optional
 from fastapi import FastAPI, HTTPException, Form, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 import rdflib
 from rdflib import Graph, Namespace, URIRef, Literal
@@ -68,6 +68,26 @@ async def serve_index() -> HTMLResponse:
     with open("index.html", "r") as f:
         content = f.read()
     return HTMLResponse(content=content)
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve an empty favicon.ico to prevent 404 errors"""
+    # Return an empty 1x1 pixel transparent ICO file
+    # This is a minimal valid ICO file structure
+    ico_content = bytes([
+        0x00, 0x00,  # Reserved
+        0x01, 0x00,  # Type: ICO
+        0x01, 0x00,  # Number of images
+        0x01, 0x01,  # Width: 1, Height: 1
+        0x00,        # Color count
+        0x00,        # Reserved
+        0x01, 0x00,  # Planes
+        0x01, 0x00,  # Bits per pixel
+        0x16, 0x00, 0x00, 0x00,  # Size of image data
+        0x16, 0x00, 0x00, 0x00   # Offset to image data
+    ]) + bytes([0x00] * 22)  # 22 bytes of empty image data
+    
+    return Response(content=ico_content, media_type="image/x-icon")
 
 @app.get("/{filename}")
 async def serve_static_files(filename: str) -> HTMLResponse:
