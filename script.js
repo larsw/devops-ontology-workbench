@@ -4,6 +4,13 @@ const links = [];
 const typeMap = new Map();
 let yasgui;
 
+// Global variables for D3 elements (needed for highlightNode function)
+let globalSvg = null;
+let globalContainer = null;
+let globalZoom = null;
+let globalWidth = 0;
+let globalHeight = 0;
+
 // Define color scheme for different concept types
 const colorScheme = {
   'Application': '#ff6b6b',
@@ -74,11 +81,45 @@ fetch('sample.ttl')
     });
   });
 
+// Global function to highlight and select a node by ID
+function highlightNode(nodeId) {
+  const nodeData = nodes.get(nodeId);
+  if (nodeData && globalContainer && globalSvg && globalZoom) {
+    const nodeElement = globalContainer.selectAll("circle")
+      .filter(d => d.id === nodeId)
+      .node();
+    
+    if (nodeElement) {
+      selectNode(nodeData, nodeElement);
+      
+      // Animate to center the node
+      const transform = d3.zoomTransform(globalSvg.node());
+      const [x, y] = [nodeData.x, nodeData.y];
+      
+      globalSvg.transition()
+        .duration(500)
+        .call(globalZoom.transform, 
+          d3.zoomIdentity
+            .translate(globalWidth / 2 - x * transform.k, globalHeight / 2 - y * transform.k)
+            .scale(transform.k)
+        );
+    }
+  }
+}
+
+// Make highlightNode globally accessible
+window.highlightNode = highlightNode;
+
 function drawGraph() {
   const svg = d3.select("svg");
   const graphContainer = document.querySelector('.graph-container');
   const width = graphContainer.clientWidth;
   const height = graphContainer.clientHeight;
+
+  // Set global variables for highlightNode function
+  globalSvg = svg;
+  globalWidth = width;
+  globalHeight = height;
 
   // Clear any existing content
   svg.selectAll("*").remove();
@@ -93,6 +134,10 @@ function drawGraph() {
     .on("zoom", (event) => {
       container.attr("transform", event.transform);
     });
+
+  // Set global variables for highlightNode function
+  globalContainer = container;
+  globalZoom = zoom;
 
   // Apply zoom behavior to the SVG
   svg.call(zoom);
@@ -1245,7 +1290,7 @@ function selectNode(nodeData, element) {
       html += '<h4>Outbound Relations</h4><div class="property-list">';
       outboundRelations.forEach(rel => {
         html += `
-          <div class="relation-item" onclick="highlightNode('${rel.targetId}')">
+          <div class="relation-item" data-target-id="${rel.targetId}">
             <span class="relation-predicate">${rel.predicate}</span>
             <span class="relation-target">→ ${rel.target}</span>
           </div>
@@ -1258,7 +1303,7 @@ function selectNode(nodeData, element) {
       html += '<h4>Inbound Relations</h4><div class="property-list">';
       inboundRelations.forEach(rel => {
         html += `
-          <div class="relation-item" onclick="highlightNode('${rel.sourceId}')">
+          <div class="relation-item" data-target-id="${rel.sourceId}">
             <span class="relation-predicate">${rel.predicate}</span>
             <span class="relation-target">${rel.source} →</span>
           </div>
@@ -1272,33 +1317,18 @@ function selectNode(nodeData, element) {
     }
 
     panel.innerHTML = html;
-  }
-
-// Function to highlight and select a node by ID
-window.highlightNode = function(nodeId) {
-  const nodeData = nodes.get(nodeId);
-  if (nodeData) {
-    const nodeElement = container.selectAll("circle")
-      .filter(d => d.id === nodeId)
-      .node();
     
-    if (nodeElement) {
-      selectNode(nodeData, nodeElement);
-      
-      // Animate to center the node
-      const transform = d3.zoomTransform(svg.node());
-      const [x, y] = [nodeData.x, nodeData.y];
-      
-      svg.transition()
-        .duration(500)
-        .call(zoom.transform, 
-          d3.zoomIdentity
-            .translate(width / 2 - x * transform.k, height / 2 - y * transform.k)
-            .scale(transform.k)
-        );
-    }
+    // Add event listeners for relation items
+    panel.querySelectorAll('.relation-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const targetId = this.getAttribute('data-target-id');
+        if (targetId) {
+          console.log('Clicking relation to navigate to:', targetId);
+          highlightNode(targetId);
+        }
+      });
+    });
   }
-};
 
 // Clear selection when clicking on empty space
 svg.on("click", function(event) {
