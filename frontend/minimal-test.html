@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minimal Test</title>
+</head>
+<body>
+  <h1>Minimal Test</h1>
+  <svg width="400" height="400" style="border: 1px solid black;">
+    <!-- Test SVG will be populated -->
+  </svg>
+  
+  <script type="module">
+    import * as d3 from 'd3';
+    
+    console.log('D3 loaded:', !!d3);
+    
+    // Simple test
+    const svg = d3.select('svg');
+    svg.append('circle')
+      .attr('cx', 100)
+      .attr('cy', 100)
+      .attr('r', 20)
+      .style('fill', 'red');
+      
+    console.log('Circle added');
+  </script>
+</body>
+</html>

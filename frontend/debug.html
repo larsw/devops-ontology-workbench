@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+</head>
+<body>
+    <h1>Debug Test</h1>
+    <div id="debug"></div>
+    <script type="module">
+        import { DevOpsOntologyWorkbench } from './src/main.js';
+        
+        window.addEventListener('load', async () => {
+            const debug = document.getElementById('debug');
+            try {
+                debug.innerHTML = 'Starting test...<br>';
+                
+                // Test fetch
+                const response = await fetch('sample.ttl');
+                debug.innerHTML += `Fetch status: ${response.status}<br>`;
+                
+                const text = await response.text();
+                debug.innerHTML += `Content length: ${text.length}<br>`;
+                debug.innerHTML += `First 100 chars: ${text.substring(0, 100)}<br>`;
+                
+            } catch (error) {
+                debug.innerHTML += `Error: ${error.message}<br>`;
+            }
+        });
+    </script>
+</body>
+</html>

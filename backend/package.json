@@ -1,0 +1,13 @@
+{
+  "name": "devops-ontology-workbench-backend",
+  "version": "1.0.0",
+  "description": "Backend API for DevOps Ontology Workbench",
+  "main": "main.py",
+  "scripts": {
+    "start": "python main.py",
+    "dev": "uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+  },
+  "keywords": ["fastapi", "sparql", "rdf", "devops"],
+  "author": "",
+  "license": "MIT"
+}

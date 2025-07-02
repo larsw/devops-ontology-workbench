@@ -173,12 +173,13 @@ async def serve_sample_ttl() -> Response:
     else:
         raise HTTPException(status_code=404, detail="sample.ttl file not found")
 
-@app.post("/sparql")
-async def sparql_endpoint(request: Request) -> JSONResponse:
+@app.post("/sparql", response_model=None)
+async def sparql_endpoint(request: Request):
     """SPARQL endpoint for executing queries"""
     try:
         # Handle different content types
         content_type = request.headers.get("content-type", "")
+        accept_header = request.headers.get("accept", "application/sparql-results+json")
         query: Optional[str] = None
         
         if "application/x-www-form-urlencoded" in content_type:
@@ -203,11 +204,24 @@ async def sparql_endpoint(request: Request) -> JSONResponse:
         
         if not query or not isinstance(query, str):
             raise HTTPException(status_code=400, detail="No valid query provided")
+
+        # Check if this is a CONSTRUCT query
+        is_construct_query = 'CONSTRUCT' in query.upper()
         
         # Execute the SPARQL query
         results = execute_sparql_query(query)
         
-        # Return results in SPARQL JSON format
+        # For CONSTRUCT queries, check if client wants turtle format
+        if is_construct_query and ("text/turtle" in accept_header or "application/rdf+xml" in accept_header):
+            # Return raw turtle for CONSTRUCT queries when turtle is requested
+            if "turtle" in results:
+                return Response(
+                    content=results["turtle"],
+                    media_type="text/turtle",
+                    headers={"Content-Type": "text/turtle"}
+                )
+        
+        # Return results in SPARQL JSON format (default)
         return JSONResponse(content=results, headers={
             "Content-Type": "application/sparql-results+json"
         })
@@ -229,8 +243,32 @@ def execute_sparql_query(query_string: str) -> Dict[str, Any]:
         # Execute the query
         results = graph.query(query_string)
         
-        # Convert results to SPARQL JSON format
-        if hasattr(results, 'vars') and results.vars:
+        # Detect query type
+        query_upper = query_string.strip().upper()
+        is_construct = 'CONSTRUCT' in query_upper
+        is_ask = 'ASK' in query_upper
+        
+        if is_construct:
+            # CONSTRUCT query - results is a Graph
+            turtle_data = results.serialize(format='turtle')
+            # Ensure turtle_data is a string, not bytes
+            if isinstance(turtle_data, bytes):
+                turtle_data = turtle_data.decode('utf-8')
+            return {
+                "head": {},
+                "results": {
+                    "bindings": []
+                },
+                "turtle": turtle_data,
+                "type": "construct"
+            }
+        elif is_ask:
+            # ASK query
+            return {
+                "head": {},
+                "boolean": bool(results)
+            }
+        elif hasattr(results, 'vars') and results.vars:
             # SELECT query
             bindings = []
             for row in results:
@@ -252,7 +290,7 @@ def execute_sparql_query(query_string: str) -> Dict[str, Any]:
                 }
             }
         else:
-            # ASK query or other types
+            # Fallback for other query types
             return {
                 "head": {},
                 "boolean": bool(results) if hasattr(results, '__bool__') else True

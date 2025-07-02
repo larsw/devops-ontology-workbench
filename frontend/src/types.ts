@@ -45,6 +45,7 @@ export interface AppState {
   selectedElement: any;
   currentLayout: GraphLayoutType;
   physicsConfig: PhysicsConfig;
+  graphFilter: GraphFilter;
 }
 
 // Event handler function types
@@ -115,4 +116,13 @@ export interface PhysicsControl {
   max: number;
   step: number;
   default: number;
+}
+
+// Graph filtering and restoration
+export interface GraphFilter {
+  isFiltered: boolean;
+  originalNodes: Map<string, NodeData>;
+  originalLinks: LinkData[];
+  filterSource: 'construct' | 'custom';
+  filterDescription?: string;
 }

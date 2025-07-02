@@ -41,7 +41,13 @@ export class DevOpsOntologyWorkbench {
       selectedNode: null,
       selectedElement: null,
       currentLayout: 'force-directed',
-      physicsConfig: { ...defaultPhysicsConfig }
+      physicsConfig: { ...defaultPhysicsConfig },
+      graphFilter: {
+        isFiltered: false,
+        originalNodes: new Map(),
+        originalLinks: [],
+        filterSource: 'custom'
+      }
     };
 
     // Initialize components
@@ -110,6 +116,9 @@ export class DevOpsOntologyWorkbench {
       this.sparqlInterface = new sparqlModule.SparqlInterface();
       this.sparqlInterface.initializeSPARQL(this.state);
       
+      // Set up SPARQL handlers after initialization
+      this.setupSparqlHandlers();
+      
       console.log('🔍 SPARQL interface initialized');
       if (debugDiv) debugDiv.innerHTML += '<br>🔍 SPARQL ready';
 
@@ -156,6 +165,8 @@ export class DevOpsOntologyWorkbench {
       // Re-apply the current layout with new physics
       this.graphViz.changeLayout(this.state, this.state.currentLayout);
     });
+
+    // Note: SPARQL handlers will be set up after SPARQL interface is initialized
   }
 
   /**
@@ -238,6 +249,82 @@ export class DevOpsOntologyWorkbench {
   cleanup(): void {
     this.eventHandlers.cleanup();
     this.resizeHandlers.cleanup();
+  }
+
+  /**
+   * Handle CONSTRUCT query results by updating the graph
+   */
+  private async handleConstructResults(constructData: string): Promise<void> {
+    try {
+      console.log('🎯 Handling CONSTRUCT query results...');
+      
+      // Parse the CONSTRUCT results and update the graph
+      await this.dataLoader.parseConstructResults(this.state, constructData);
+      
+      // Redraw the graph with the new data
+      if (this.state.globalSvg) {
+        this.graphViz.drawGraph(this.state);
+        
+        // Re-add UI components
+        this.uiComponents.createLegend(this.state.globalSvg);
+        this.uiComponents.addInstructions(this.state.globalSvg);
+        this.uiComponents.createLayoutSelector(this.state.globalSvg, this.state.currentLayout, this.state.physicsConfig);
+      }
+      
+      console.log('✅ Graph updated with CONSTRUCT results');
+    } catch (error) {
+      console.error('❌ Error handling CONSTRUCT results:', error);
+      this.showError('Failed to visualize CONSTRUCT results. Please check the console for details.');
+    }
+  }
+
+  /**
+   * Handle restoring the original graph
+   */
+  private handleRestoreGraph(): void {
+    try {
+      console.log('🔄 Restoring original graph...');
+      
+      // Restore the original graph data
+      this.dataLoader.restoreOriginalGraph(this.state);
+      
+      // Redraw the graph with the restored data
+      if (this.state.globalSvg) {
+        this.graphViz.drawGraph(this.state);
+        
+        // Re-add UI components
+        this.uiComponents.createLegend(this.state.globalSvg);
+        this.uiComponents.addInstructions(this.state.globalSvg);
+        this.uiComponents.createLayoutSelector(this.state.globalSvg, this.state.currentLayout, this.state.physicsConfig);
+      }
+      
+      console.log('✅ Original graph restored');
+    } catch (error) {
+      console.error('❌ Error restoring graph:', error);
+      this.showError('Failed to restore original graph. Please check the console for details.');
+    }
+  }
+
+  /**
+   * Set up SPARQL interface handlers after initialization
+   */
+  private setupSparqlHandlers(): void {
+    if (!this.sparqlInterface) {
+      console.error('Cannot setup SPARQL handlers: SPARQL interface not initialized');
+      return;
+    }
+
+    // Set up CONSTRUCT query handler
+    this.sparqlInterface.setConstructHandlers(
+      (constructData: string) => {
+        this.handleConstructResults(constructData);
+      },
+      () => {
+        this.handleRestoreGraph();
+      }
+    );
+
+    console.log('🔗 SPARQL handlers set up');
   }
 }
 

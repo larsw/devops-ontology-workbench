@@ -94,6 +94,31 @@ SELECT ?source ?target ?relation WHERE {
   ?source ?relation ?target .
   FILTER(?relation IN (devops:dependsOn, devops:deployedOn, devops:hostedOn))
 }`
+  },
+  {
+    name: "Server Infrastructure (CONSTRUCT)",
+    query: `PREFIX devops: <https://w3id.org/devops-infra/>
+PREFIX ex: <https://example.org/devops/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+CONSTRUCT {
+  ?server a ?serverType .
+  ?server dct:identifier ?identifier .
+  ?server devops:hostedOn ?host .
+  ?app devops:deployedOn ?server .
+  ?app a devops:Application .
+  ?app dct:identifier ?appId .
+} WHERE {
+  ?server a ?serverType .
+  ?server dct:identifier ?identifier .
+  FILTER(CONTAINS(STR(?serverType), "Server"))
+  OPTIONAL { ?server devops:hostedOn ?host }
+  OPTIONAL { 
+    ?app devops:deployedOn ?server .
+    ?app a devops:Application .
+    ?app dct:identifier ?appId 
+  }
+}`
   }
 ];
 
