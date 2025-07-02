@@ -1,6 +1,9 @@
 /**
  * SPARQL interface and Yasgui integration
  */
+import Yasgui from '@zazuko/yasgui';
+import Yasr from '@zazuko/yasr';
+import '@zazuko/yasgui/build/yasgui.min.css';
 import type { AppState } from './types.js';
 import { sampleQueries, defaultQuery } from './constants.js';
 
@@ -21,17 +24,10 @@ export class SparqlInterface {
       yasguiContainer.innerHTML = '';
     }
 
-    // Register plugins before initializing Yasgui
+    // Register plugins before initializing Yasgui (re-enabled)
     this.registerJsonLdPlugin();
     this.registerTurtlePlugin();
     this.registerTrigPlugin();
-
-    // Access global Yasgui from window
-    const Yasgui = (window as any).Yasgui;
-    if (!Yasgui) {
-      console.error("Yasgui not available");
-      return;
-    }
 
     // Initialize Yasgui with proper endpoint
     state.yasgui = new Yasgui(document.getElementById("yasgui"), {
@@ -117,7 +113,6 @@ export class SparqlInterface {
    * Register JSON-LD plugin for Yasr
    */
   private registerJsonLdPlugin(): void {
-    const Yasr = (window as any).Yasr;
     if (!Yasr) return;
 
     const JsonLdPlugin = {
@@ -222,7 +217,6 @@ export class SparqlInterface {
    * Register Turtle plugin for Yasr
    */
   private registerTurtlePlugin(): void {
-    const Yasr = (window as any).Yasr;
     if (!Yasr) return;
 
     const TurtlePlugin = {
@@ -251,7 +245,6 @@ export class SparqlInterface {
    * Register TriG plugin for Yasr
    */
   private registerTrigPlugin(): void {
-    const Yasr = (window as any).Yasr;
     if (!Yasr) return;
 
     const TrigPlugin = {
