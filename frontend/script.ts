@@ -21,17 +21,21 @@ const Yasr = (window as any).Yasr;
 interface NodeData extends d3.SimulationNodeDatum {
   id: string;
   type: string;
+  x?: number;
+  y?: number;
 }
 
 interface LinkData extends d3.SimulationLinkDatum<NodeData> {
   label: string;
+  source: NodeData;
+  target: NodeData;
 }
 
 const parser = new Parser();
-const nodes = new Map();
-const links = [];
-const typeMap = new Map();
-let yasgui;
+const nodes = new Map<string, NodeData>();
+const links: LinkData[] = [];
+const typeMap = new Map<string, string>();
+let yasgui: any;
 
 // Global variables for D3 elements (needed for highlightNode function)
 let globalSvg = null;
@@ -127,7 +131,7 @@ function highlightNode(nodeId) {
       
       globalSvg.transition()
         .duration(500)
-        .call(globalZoom.transform, 
+        .call(globalZoom.transform as any, 
           d3.zoomIdentity
             .translate(globalWidth / 2 - x * transform.k, globalHeight / 2 - y * transform.k)
             .scale(transform.k)
@@ -196,11 +200,11 @@ function drawGraph() {
   resetButton.on("click", () => {
     svg.transition()
       .duration(750)
-      .call(zoom.transform, d3.zoomIdentity);
+      .call(zoom.transform as any, d3.zoomIdentity);
   });
 
   const simulation = d3.forceSimulation([...nodes.values()])
-    .force("link", d3.forceLink(links).id(d => d.id).distance(150).strength(0.2))
+    .force("link", d3.forceLink(links).id((d: any) => d.id).distance(150).strength(0.2))
     .force("charge", d3.forceManyBody().strength(-200).distanceMax(400))
     .force("center", d3.forceCenter(width / 2, height / 2).strength(0.1))
     .force("collision", d3.forceCollide().radius(18).strength(0.3))
@@ -325,12 +329,36 @@ function drawGraph() {
 
   // Add instructions
   addInstructions(svg);
+
+  // Clear selection when clicking on empty space
+  svg.on("click", function(event) {
+    if (event.target === this) {
+      if (selectedElement) {
+        d3.select(selectedElement)
+          .classed("selected", false)
+          .style("stroke", "#333")
+          .style("stroke-width", "2px");
+      }
+      selectedNode = null;
+      selectedElement = null;
+      
+      const nodeDetailsContent = document.getElementById('nodeDetailsContent');
+      if (nodeDetailsContent) {
+        nodeDetailsContent.innerHTML = `
+          <div class="no-selection">
+            Click on a node to view its details
+          </div>
+        `;
+      }
+    }
+  });
 }
 
 // Global keyboard shortcuts
 document.addEventListener('keydown', (event) => {
   // Don't intercept keys when user is typing in input fields
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
+  const target = event.target as HTMLElement;
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
     return;
   }
   
@@ -341,21 +369,21 @@ document.addEventListener('keydown', (event) => {
     if (globalSvg && globalZoom) {
       globalSvg.transition()
         .duration(750)
-        .call(globalZoom.transform, d3.zoomIdentity);
+        .call(globalZoom.transform as any, d3.zoomIdentity);
     }
   } else if (event.key === "+" || event.key === "=") {
     // Zoom in with '+' key
     if (globalSvg && globalZoom) {
       globalSvg.transition()
         .duration(200)
-        .call(globalZoom.scaleBy, 1.5);
+        .call(globalZoom.scaleBy as any, 1.5);
     }
   } else if (event.key === "-" || event.key === "_") {
     // Zoom out with '-' key
     if (globalSvg && globalZoom) {
       globalSvg.transition()
         .duration(200)
-        .call(globalZoom.scaleBy, 1 / 1.5);
+        .call(globalZoom.scaleBy as any, 1 / 1.5);
     }
   } else if (event.key === "h" || event.key === "H") {
     // Toggle legend with 'H' key (Help/legend)
@@ -703,8 +731,8 @@ function initializeResize() {
     const newQueryHeight = containerHeight - newGraphHeight - resizeHandle.clientHeight;
     
     if (newGraphHeight > 200 && newQueryHeight > 100) {
-      graphContainer.style.flex = `0 0 ${newGraphHeight}px`;
-      queryContainer.style.flex = `0 0 ${newQueryHeight}px`;
+      (graphContainer as HTMLElement).style.flex = `0 0 ${newGraphHeight}px`;
+      (queryContainer as HTMLElement).style.flex = `0 0 ${newQueryHeight}px`;
     }
   }
 
@@ -729,8 +757,8 @@ function initializeResize() {
     const newPanelWidth = containerWidth - newMainWidth - verticalResizeHandle.clientWidth;
     
     if (newMainWidth > 300 && newPanelWidth > 200) {
-      graphMain.style.flex = `0 0 ${newMainWidth}px`;
-      nodeDetailsPanel.style.width = `${newPanelWidth}px`;
+      (graphMain as HTMLElement).style.flex = `0 0 ${newMainWidth}px`;
+      (nodeDetailsPanel as HTMLElement).style.width = `${newPanelWidth}px`;
     }
   }
 
@@ -1121,8 +1149,10 @@ function selectNode(nodeData, element) {
       const predicateName = link.label ? link.label.split('/').pop().split('#').pop() : 'connected to';
       
       // Handle both string IDs and object references (after simulation starts)
-      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      const sourceId = typeof link.source === 'string' ? link.source : 
+                      typeof link.source === 'object' ? (link.source as NodeData).id : String(link.source);
+      const targetId = typeof link.target === 'string' ? link.target : 
+                      typeof link.target === 'object' ? (link.target as NodeData).id : String(link.target);
       
       if (sourceId === nodeData.id) {
         // Outbound relation
@@ -1212,26 +1242,6 @@ function selectNode(nodeData, element) {
       });
     });
   }
-
-// Clear selection when clicking on empty space
-svg.on("click", function(event) {
-  if (event.target === this) {
-    if (selectedElement) {
-      d3.select(selectedElement)
-        .classed("selected", false)
-        .style("stroke", "#333")
-        .style("stroke-width", "2px");
-    }
-    selectedNode = null;
-    selectedElement = null;
-    
-    document.getElementById('nodeDetailsContent').innerHTML = `
-      <div class="no-selection">
-        Click on a node to view its details
-      </div>
-    `;
-  }
-});
 
 // Panel management functions
 function togglePanel(panelId) {
