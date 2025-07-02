@@ -1,0 +1,26 @@
+{
+  "name": "devops-ontology-workbench",
+  "version": "1.0.0",
+  "description": "DevOps Infrastructure Ontology Workbench with RDF visualization and SPARQL querying",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && bun run dev",
+    "dev:backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "build": "cd frontend && bun run build",
+    "install:frontend": "cd frontend && bun install",
+    "install:backend": "cd backend && pip install -r requirements.txt",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "start:backend": "cd backend && python main.py",
+    "start:frontend": "cd frontend && bun run preview"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  },
+  "keywords": ["rdf", "sparql", "devops", "ontology", "visualization"],
+  "author": "",
+  "license": "MIT"
+}

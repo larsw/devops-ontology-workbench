@@ -1,0 +1,444 @@
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix devops: <https://w3id.org/devops-infra/> .
+@prefix ex: <https://example.org/devops/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Applications and Services
+ex:WebApp_Frontend a devops:Application ;
+    dct:identifier "WebApp-Frontend"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_001_1 ;
+    devops:dependsOn ex:Service_API ;
+    devops:hasVersion "2.1.4"^^xsd:string ;
+    devops:isContainerized "true"^^xsd:boolean .
+
+ex:WebApp_Backend a devops:Application ;
+    dct:identifier "WebApp-Backend"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_002_1 ;
+    devops:dependsOn ex:Database_Main ;
+    devops:hasVersion "1.8.2"^^xsd:string ;
+    devops:isContainerized "true"^^xsd:boolean .
+
+ex:Service_API a devops:Service ;
+    dct:identifier "API-Service"^^xsd:string ;
+    devops:exposedOn ex:VM_Srv_002_1 ;
+    devops:hasPort "8080"^^xsd:integer ;
+    devops:hasEndpoint "/api/v1"^^xsd:string .
+
+ex:Service_Database a devops:Service ;
+    dct:identifier "Database-Service"^^xsd:string ;
+    devops:exposedOn ex:VM_Srv_003_1 ;
+    devops:hasPort "5432"^^xsd:integer .
+
+# Containers and Container Management
+ex:Container_Frontend a devops:Container ;
+    dct:identifier "frontend-container"^^xsd:string ;
+    devops:runningOn ex:VM_Srv_001_1 ;
+    devops:hasImage "nginx:alpine"^^xsd:string ;
+    devops:hasTag "v2.1.4"^^xsd:string ;
+    devops:exposesPort "80"^^xsd:integer .
+
+ex:Container_Backend a devops:Container ;
+    dct:identifier "backend-container"^^xsd:string ;
+    devops:runningOn ex:VM_Srv_002_1 ;
+    devops:hasImage "node:16-alpine"^^xsd:string ;
+    devops:hasTag "v1.8.2"^^xsd:string ;
+    devops:exposesPort "8080"^^xsd:integer .
+
+ex:Container_Database a devops:Container ;
+    dct:identifier "database-container"^^xsd:string ;
+    devops:runningOn ex:VM_Srv_003_1 ;
+    devops:hasImage "postgresql:13"^^xsd:string ;
+    devops:exposesPort "5432"^^xsd:integer .
+
+# Databases
+ex:Database_Main a devops:Database ;
+    dct:identifier "main-database"^^xsd:string ;
+    devops:hostedOn ex:VM_Srv_003_1 ;
+    devops:hasType "PostgreSQL"^^xsd:string ;
+    devops:hasVersion "13.8"^^xsd:string ;
+    devops:hasSchema ex:Schema_UserData .
+
+ex:Database_Analytics a devops:Database ;
+    dct:identifier "analytics-database"^^xsd:string ;
+    devops:hostedOn ex:VM_Srv_004_1 ;
+    devops:hasType "MongoDB"^^xsd:string ;
+    devops:hasVersion "5.0"^^xsd:string .
+
+ex:Schema_UserData a devops:DatabaseSchema ;
+    dct:identifier "user-data-schema"^^xsd:string ;
+    devops:belongsTo ex:Database_Main .
+
+# Monitoring and Observability
+ex:Monitor_AppHealth a devops:MonitoringAgent ;
+    dct:identifier "app-health-monitor"^^xsd:string ;
+    devops:monitors ex:WebApp_Frontend,
+        ex:WebApp_Backend ;
+    devops:deployedOn ex:VM_Srv_005_1 ;
+    devops:hasMetricEndpoint "/metrics"^^xsd:string .
+
+ex:Monitor_Infrastructure a devops:MonitoringAgent ;
+    dct:identifier "infra-monitor"^^xsd:string ;
+    devops:monitors ex:PH_Srv_001,
+        ex:PH_Srv_002,
+        ex:PH_Srv_003 ;
+    devops:deployedOn ex:VM_Srv_005_1 .
+
+ex:LogAggregator_Main a devops:LogAggregator ;
+    dct:identifier "main-log-aggregator"^^xsd:string ;
+    devops:collectsFrom ex:WebApp_Frontend,
+        ex:WebApp_Backend,
+        ex:Service_API ;
+    devops:deployedOn ex:VM_Srv_005_1 .
+
+# Deployments and Workflows
+ex:Deployment_Production a devops:Deployment ;
+    dct:identifier "prod-deployment-2025-07-01"^^xsd:string ;
+    devops:deploys ex:WebApp_Frontend,
+        ex:WebApp_Backend ;
+    devops:targetEnvironment ex:Environment_Production ;
+    devops:deployedAt "2025-07-01T10:00:00"^^xsd:dateTime ;
+    devops:deployedBy ex:User_DevOpsEngineer .
+
+ex:Deployment_Staging a devops:Deployment ;
+    dct:identifier "staging-deployment-2025-06-30"^^xsd:string ;
+    devops:deploys ex:WebApp_Frontend,
+        ex:WebApp_Backend ;
+    devops:targetEnvironment ex:Environment_Staging ;
+    devops:deployedAt "2025-06-30T15:30:00"^^xsd:dateTime ;
+    devops:deployedBy ex:User_Developer .
+
+ex:Workflow_CICD a devops:Workflow ;
+    dct:identifier "ci-cd-pipeline"^^xsd:string ;
+    devops:includesStep ex:Step_Build,
+        ex:Step_Test,
+        ex:Step_Deploy ;
+    devops:triggeredBy ex:Event_CodeCommit .
+
+ex:Step_Build a devops:WorkflowStep ;
+    dct:identifier "build-step"^^xsd:string ;
+    devops:hasAction "docker build"^^xsd:string ;
+    devops:executedOn ex:VM_Srv_001_2 .
+
+ex:Step_Test a devops:WorkflowStep ;
+    dct:identifier "test-step"^^xsd:string ;
+    devops:hasAction "npm test"^^xsd:string ;
+    devops:executedOn ex:VM_Srv_002_2 .
+
+ex:Step_Deploy a devops:WorkflowStep ;
+    dct:identifier "deploy-step"^^xsd:string ;
+    devops:hasAction "kubectl apply"^^xsd:string ;
+    devops:executedOn ex:VM_Srv_003_2 .
+
+# Environments
+ex:Environment_Production a devops:Environment ;
+    dct:identifier "production"^^xsd:string ;
+    devops:contains ex:VM_Srv_001_1,
+        ex:VM_Srv_002_1,
+        ex:VM_Srv_003_1 ;
+    devops:managedBy ex:Dept_Infra .
+
+ex:Environment_Staging a devops:Environment ;
+    dct:identifier "staging"^^xsd:string ;
+    devops:contains ex:VM_Srv_001_2,
+        ex:VM_Srv_002_2,
+        ex:VM_Srv_003_2 ;
+    devops:managedBy ex:Dept_Infra .
+
+# Users and Teams
+ex:User_DevOpsEngineer a devops:User ;
+    dct:identifier "devops-engineer-001"^^xsd:string ;
+    devops:belongsToTeam ex:Team_Infrastructure ;
+    devops:hasRole "DevOps Engineer"^^xsd:string .
+
+ex:User_Developer a devops:User ;
+    dct:identifier "developer-001"^^xsd:string ;
+    devops:belongsToTeam ex:Team_Development ;
+    devops:hasRole "Senior Developer"^^xsd:string .
+
+ex:Team_Infrastructure a devops:Team ;
+    dct:identifier "infrastructure-team"^^xsd:string ;
+    devops:belongsToDepartment ex:Dept_Infra ;
+    devops:responsible_for ex:Environment_Production .
+
+ex:Team_Development a devops:Team ;
+    dct:identifier "development-team"^^xsd:string ;
+    devops:belongsToDepartment ex:Dept_Engineering ;
+    devops:responsible_for ex:WebApp_Frontend,
+        ex:WebApp_Backend .
+
+ex:Dept_Engineering a devops:Department ;
+    dct:identifier "Dept-Engineering"^^xsd:string .
+
+# Events and Incidents
+ex:Event_CodeCommit a devops:Event ;
+    dct:identifier "code-commit-event"^^xsd:string ;
+    devops:triggers ex:Workflow_CICD ;
+    devops:occurredAt "2025-07-01T09:45:00"^^xsd:dateTime .
+
+ex:Incident_DatabaseDowntime a devops:Incident ;
+    dct:identifier "db-downtime-2025-06-29"^^xsd:string ;
+    devops:affects ex:Database_Main ;
+    devops:reportedAt "2025-06-29T14:22:00"^^xsd:dateTime ;
+    devops:resolvedAt "2025-06-29T15:18:00"^^xsd:dateTime ;
+    devops:severity "High"^^xsd:string .
+
+# Load Balancers and Network Components
+ex:LoadBalancer_Main a devops:LoadBalancer ;
+    dct:identifier "main-lb"^^xsd:string ;
+    devops:balancesTrafficTo ex:VM_Srv_001_1,
+        ex:VM_Srv_002_1 ;
+    devops:deployedOn ex:VM_Srv_005_1 ;
+    devops:hasAlgorithm "round-robin"^^xsd:string .
+
+ex:Firewall_Main a devops:Firewall ;
+    dct:identifier "main-firewall"^^xsd:string ;
+    devops:protects ex:NS_1 ;
+    devops:hasRule ex:Rule_HTTPSOnly .
+
+ex:Rule_HTTPSOnly a devops:FirewallRule ;
+    dct:identifier "https-only-rule"^^xsd:string ;
+    devops:allowsPort "443"^^xsd:integer ;
+    devops:blocksPort "80"^^xsd:integer .
+
+# Backup and Storage
+ex:Backup_DatabaseDaily a devops:Backup ;
+    dct:identifier "daily-db-backup"^^xsd:string ;
+    devops:backupOf ex:Database_Main ;
+    devops:storedOn ex:Storage_Backup ;
+    devops:createdAt "2025-07-01T02:00:00"^^xsd:dateTime ;
+    devops:retentionPeriod "30"^^xsd:integer .
+
+ex:Storage_Backup a devops:Storage ;
+    dct:identifier "backup-storage"^^xsd:string ;
+    devops:locatedIn ex:DC_2 ;
+    devops:hasCapacity "10TB"^^xsd:string ;
+    devops:hasType "SSD"^^xsd:string .
+
+# Additional IP addresses for new services
+ex:IP_006 a devops:IPAddress ;
+    dct:identifier "192.168.1.6"^^xsd:string ;
+    devops:assignedTo ex:LoadBalancer_Main .
+
+ex:Cert_001 a devops:DigitalCertificate ;
+    dct:identifier "CERT-001"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_001_1 ;
+    devops:validFrom "2025-07-01T18:49:26.199707"^^xsd:dateTime ;
+    devops:validTo "2026-07-01T18:49:26.204620"^^xsd:dateTime .
+
+ex:Cert_002 a devops:DigitalCertificate ;
+    dct:identifier "CERT-002"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_002_1 ;
+    devops:validFrom "2025-07-01T18:49:26.204837"^^xsd:dateTime ;
+    devops:validTo "2026-07-01T18:49:26.204928"^^xsd:dateTime .
+
+ex:Cert_003 a devops:DigitalCertificate ;
+    dct:identifier "CERT-003"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_003_1 ;
+    devops:validFrom "2025-07-01T18:49:26.205115"^^xsd:dateTime ;
+    devops:validTo "2026-07-01T18:49:26.205204"^^xsd:dateTime .
+
+ex:Cert_004 a devops:DigitalCertificate ;
+    dct:identifier "CERT-004"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_004_1 ;
+    devops:validFrom "2025-07-01T18:49:26.205384"^^xsd:dateTime ;
+    devops:validTo "2026-07-01T18:49:26.205470"^^xsd:dateTime .
+
+ex:Cert_005 a devops:DigitalCertificate ;
+    dct:identifier "CERT-005"^^xsd:string ;
+    devops:deployedOn ex:VM_Srv_005_1 ;
+    devops:validFrom "2025-07-01T18:49:26.205664"^^xsd:dateTime ;
+    devops:validTo "2026-07-01T18:49:26.205748"^^xsd:dateTime .
+
+ex:DC_2 a devops:DataCenter ;
+    dct:identifier "DC-2"^^xsd:string ;
+    devops:locatedIn ex:Scope_Global .
+
+ex:DC_3 a devops:DataCenter ;
+    dct:identifier "DC-3"^^xsd:string ;
+    devops:locatedIn ex:Scope_Global .
+
+ex:DNS_Main a devops:DNSDomain ;
+    dct:identifier "main.example.com"^^xsd:string ;
+    devops:resolves ex:IP_001 .
+
+ex:Disk_001 a devops:Disk ;
+    dct:identifier "Disk-001"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_001 .
+
+ex:Disk_002 a devops:Disk ;
+    dct:identifier "Disk-002"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_002 .
+
+ex:Disk_003 a devops:Disk ;
+    dct:identifier "Disk-003"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_003 .
+
+ex:Disk_004 a devops:Disk ;
+    dct:identifier "Disk-004"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_004 .
+
+ex:Disk_005 a devops:Disk ;
+    dct:identifier "Disk-005"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_005 .
+
+ex:NC_001 a devops:NetworkCard ;
+    dct:identifier "NC-001"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_001 .
+
+ex:NC_002 a devops:NetworkCard ;
+    dct:identifier "NC-002"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_002 .
+
+ex:NC_003 a devops:NetworkCard ;
+    dct:identifier "NC-003"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_003 .
+
+ex:NC_004 a devops:NetworkCard ;
+    dct:identifier "NC-004"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_004 .
+
+ex:NC_005 a devops:NetworkCard ;
+    dct:identifier "NC-005"^^xsd:string ;
+    devops:installedOn ex:HW_Srv_005 .
+
+ex:NS_1 a devops:NetworkSegment ;
+    dct:identifier "NS-1"^^xsd:string ;
+    devops:composedOf ex:IP_001,
+        ex:IP_002,
+        ex:IP_003 .
+
+ex:NS_2 a devops:NetworkSegment ;
+    dct:identifier "NS-2"^^xsd:string ;
+    devops:composedOf ex:IP_004,
+        ex:IP_005,
+        ex:IP_006 .
+
+ex:VM_Srv_001_2 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-001-2"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_001 .
+
+ex:VM_Srv_002_2 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-002-2"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_002 .
+
+ex:VM_Srv_003_2 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-003-2"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_003 .
+
+ex:VM_Srv_004_2 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-004-2"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_004 .
+
+ex:VM_Srv_005_2 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-005-2"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_005 .
+
+ex:Dept_Infra a devops:Department ;
+    dct:identifier "Dept-Infra"^^xsd:string .
+
+ex:IP_002 a devops:IPAddress ;
+    dct:identifier "192.168.1.2"^^xsd:string ;
+    devops:assignedTo ex:PH_Srv_002 .
+
+ex:IP_003 a devops:IPAddress ;
+    dct:identifier "192.168.1.3"^^xsd:string ;
+    devops:assignedTo ex:PH_Srv_003 .
+
+ex:IP_004 a devops:IPAddress ;
+    dct:identifier "192.168.1.4"^^xsd:string ;
+    devops:assignedTo ex:PH_Srv_004 .
+
+ex:IP_005 a devops:IPAddress ;
+    dct:identifier "192.168.1.5"^^xsd:string ;
+    devops:assignedTo ex:PH_Srv_005 .
+
+ex:VM_Srv_001_1 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-001-1"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_001 .
+
+ex:VM_Srv_002_1 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-002-1"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_002 .
+
+ex:VM_Srv_003_1 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-003-1"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_003 .
+
+ex:VM_Srv_004_1 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-004-1"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_004 .
+
+ex:VM_Srv_005_1 a devops:VirtualServer ;
+    dct:identifier "VM-SRV-005-1"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:hostedOn ex:PH_Srv_005 .
+
+ex:HW_Srv_001 a devops:ServerHardware ;
+    dct:identifier "HW-SRV-001"^^xsd:string ;
+    devops:installedOn ex:PH_Srv_001 .
+
+ex:HW_Srv_002 a devops:ServerHardware ;
+    dct:identifier "HW-SRV-002"^^xsd:string ;
+    devops:installedOn ex:PH_Srv_002 .
+
+ex:HW_Srv_003 a devops:ServerHardware ;
+    dct:identifier "HW-SRV-003"^^xsd:string ;
+    devops:installedOn ex:PH_Srv_003 .
+
+ex:HW_Srv_004 a devops:ServerHardware ;
+    dct:identifier "HW-SRV-004"^^xsd:string ;
+    devops:installedOn ex:PH_Srv_004 .
+
+ex:HW_Srv_005 a devops:ServerHardware ;
+    dct:identifier "HW-SRV-005"^^xsd:string ;
+    devops:installedOn ex:PH_Srv_005 .
+
+ex:IP_001 a devops:IPAddress ;
+    dct:identifier "192.168.1.1"^^xsd:string ;
+    devops:assignedTo ex:PH_Srv_001 .
+
+ex:Scope_Global a devops:Scope ;
+    dct:identifier "Scope-Global"^^xsd:string ;
+    devops:managedBy ex:Dept_Infra .
+
+ex:PH_Srv_001 a devops:PhysicalServer ;
+    dct:identifier "PH-SRV-001"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:locatedIn ex:DC_1 .
+
+ex:PH_Srv_002 a devops:PhysicalServer ;
+    dct:identifier "PH-SRV-002"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:locatedIn ex:DC_1 .
+
+ex:PH_Srv_003 a devops:PhysicalServer ;
+    dct:identifier "PH-SRV-003"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:locatedIn ex:DC_1 .
+
+ex:PH_Srv_004 a devops:PhysicalServer ;
+    dct:identifier "PH-SRV-004"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:locatedIn ex:DC_1 .
+
+ex:PH_Srv_005 a devops:PhysicalServer ;
+    dct:identifier "PH-SRV-005"^^xsd:string ;
+    devops:belongsToResourceGroup ex:RG_AllResources ;
+    devops:locatedIn ex:DC_1 .
+
+ex:DC_1 a devops:DataCenter ;
+    dct:identifier "DC-1"^^xsd:string ;
+    devops:locatedIn ex:Scope_Global .
+
+ex:RG_AllResources a devops:ResourceGroup ;
+    dct:identifier "RG-AllResources"^^xsd:string .
+

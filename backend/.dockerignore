@@ -1,0 +1,84 @@
+# ===================================
+# Backend .dockerignore
+# ===================================
+
+# Development files
+.git/
+.gitignore
+*.md
+README*
+CHANGELOG*
+LICENSE*
+.editorconfig
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# Test and coverage
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+htmlcov/
+.hypothesis/
+coverage.xml
+*.cover
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+.tmp/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Documentation
+docs/
+*.rst
+*.txt
+!requirements.txt
+
+# Docker files (avoid recursive copies)
+Dockerfile*
+.dockerignore
+docker-compose*
+
+# Frontend directory (not needed in backend container)
+../frontend/
+/frontend/
+
+# Root level files not needed
+../node_modules/
+../bun.lock*
+../*.sh
+../package.json
+../tsconfig.json

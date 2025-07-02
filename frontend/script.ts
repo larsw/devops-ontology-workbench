@@ -1,4 +1,33 @@
-const parser = new N3.Parser();
+import * as d3 from 'd3';
+import { Parser } from 'n3';
+
+// Global types for Yasgui (loaded via CDN)
+declare global {
+  interface Window {
+    Yasgui: any;
+    Yasr: any;
+    highlightNode: (nodeId: string) => void;
+    togglePanel: (panelId: string) => void;
+    toggleLegend: () => void;
+    toggleInstructions: () => void;
+  }
+}
+
+// Access global Yasgui/Yasr from window
+const Yasgui = (window as any).Yasgui;
+const Yasr = (window as any).Yasr;
+
+// Type definitions
+interface NodeData extends d3.SimulationNodeDatum {
+  id: string;
+  type: string;
+}
+
+interface LinkData extends d3.SimulationLinkDatum<NodeData> {
+  label: string;
+}
+
+const parser = new Parser();
 const nodes = new Map();
 const links = [];
 const typeMap = new Map();
@@ -1254,6 +1283,22 @@ function toggleInstructions() {
   } else {
     console.error("Instructions element not found");
   }
+}
+
+// Placeholder conversion functions (to be implemented)
+function convertSparqlToJsonLd(results: any): any {
+  // Placeholder implementation
+  return { "@context": {}, "@graph": [] };
+}
+
+function convertSparqlToTurtle(results: any): string {
+  // Placeholder implementation
+  return "# Turtle output placeholder";
+}
+
+function convertSparqlToTrig(results: any): string {
+  // Placeholder implementation
+  return "# TriG output placeholder";
 }
 
 // Helper function to shorten URIs using prefixes

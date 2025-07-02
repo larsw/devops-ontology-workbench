@@ -2,6 +2,27 @@
 
 A comprehensive web-based visualization and query interface for DevOps infrastructure ontologies, featuring interactive graph visualization and SPARQL query capabilities.
 
+## Project Structure
+
+```
+devops-ontology-workbench/
+├── frontend/              # Vite + TypeScript frontend
+│   ├── src/
+│   ├── index.html
+│   ├── script.ts
+│   ├── styles.css
+│   ├── vite.config.ts
+│   └── package.json
+├── backend/               # FastAPI Python backend
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── sample.ttl
+│   └── package.json
+├── docker-compose.yml     # Docker configuration
+├── README.md
+└── package.json           # Root workspace configuration
+```
+
 ## Overview
 
 This project demonstrates how to work with DevOps infrastructure data using semantic web technologies. It provides:
@@ -10,6 +31,7 @@ This project demonstrates how to work with DevOps infrastructure data using sema
 - **SPARQL Query Interface**: Professional query editor powered by Yasgui
 - **Comprehensive Sample Data**: Real-world DevOps infrastructure examples
 - **FastAPI Backend**: High-performance Python backend with rdflib
+- **Modern Frontend**: Vite + TypeScript for fast development
 
 ## Features
 
@@ -17,8 +39,9 @@ This project demonstrates how to work with DevOps infrastructure data using sema
 - **Color-coded concepts**: Different colors for Applications, Servers, Databases, Networks, etc.
 - **Zoom & Pan**: Mouse wheel zoom, click-and-drag panning
 - **Node manipulation**: Drag nodes to reposition them
-- **Keyboard shortcuts**: `R` to reset zoom, `+/-` to zoom in/out
+- **Keyboard shortcuts**: `R` to reset zoom, `+/-` to zoom in/out, `H` for legend, `?` for help
 - **Resizable panels**: Adjust graph and query panel sizes
+- **Panel management**: Collapsible panels with keyboard shortcuts (`P`, `Q`)
 
 ### 🔍 **SPARQL Query Interface**
 - **Professional editor**: Syntax highlighting and auto-completion
@@ -39,9 +62,55 @@ The sample includes comprehensive DevOps infrastructure concepts:
 
 ## Quick Start
 
+### Prerequisites
+- **Bun** (for frontend)
+- **Python 3.8+** (for backend)
+- **Node.js** (for concurrently)
+
+### Development Setup
+
+1. **Clone the repository:**
+```bash
+git clone <repository-url>
+cd devops-ontology-workbench
+```
+
+2. **Install all dependencies:**
+```bash
+bun install
+bun run install:all
+```
+
+3. **Start both frontend and backend in development mode:**
+```bash
+bun run dev
+```
+
+This will start:
+- Backend: http://localhost:8000 (FastAPI + SPARQL endpoint)
+- Frontend: http://localhost:3000 (Vite dev server)
+
+### Individual Development
+
+**Backend only:**
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+# or
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Frontend only:**
+```bash
+cd frontend
+bun install
+bun run dev
+```
+
 ## Installation Options
 
-### Option 1: Docker (Recommended)
+### Option 1: Docker (Alternative)
 
 **Prerequisites:**
 - Docker

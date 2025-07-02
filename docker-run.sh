@@ -1,23 +1,31 @@
 #!/bin/bash
 
-# DevOps Ontology Docker Build and Run Script
+# DevOps Ontology Workbench - Docker Run Script
+# Simplified script to run the application with Docker Compose
 
 set -e
 
-echo "🐳 Building DevOps Ontology Docker image..."
-docker build -t devops-ontology:latest .
+echo "🐳 DevOps Ontology Workbench - Docker Deploy"
+echo "============================================="
 
-echo "🚀 Running DevOps Ontology container..."
-docker run -d \
-  --name devops-ontology \
-  -p 8000:8000 \
-  -v "$(pwd)/sample.ttl:/app/sample.ttl:ro" \
-  devops-ontology:latest
+# Check if Docker and Docker Compose are available
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker is not installed or not in PATH"
+    exit 1
+fi
 
-echo "✅ Container started successfully!"
-echo "📊 Access the application at: http://localhost:8000"
-echo "🩺 Health check at: http://localhost:8000/health"
+if ! docker compose version &> /dev/null; then
+    echo "❌ Docker Compose is not available"
+    echo "💡 Make sure you have Docker with Compose plugin installed"
+    exit 1
+fi
+
+# Build and run the services
+echo "🔨 Building and starting services..."
+docker compose up --build
+
+echo "✅ Services are running:"
+echo "   - Backend API: http://localhost:8000"
+echo "   - Frontend:    http://localhost:3000"
 echo ""
-echo "To stop the container: docker stop devops-ontology"
-echo "To remove the container: docker rm devops-ontology"
-echo "To view logs: docker logs devops-ontology"
+echo "Press Ctrl+C to stop all services"

@@ -109,6 +109,17 @@ async def serve_static_files(filename: str) -> HTMLResponse:
     
     raise HTTPException(status_code=404, detail="File not found")
 
+@app.get("/sample.ttl")
+async def serve_sample_ttl() -> Response:
+    """Serve the sample TTL file"""
+    ttl_file = Path("sample.ttl")
+    if ttl_file.exists():
+        with open(ttl_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="text/turtle")
+    else:
+        raise HTTPException(status_code=404, detail="sample.ttl file not found")
+
 @app.post("/sparql")
 async def sparql_endpoint(request: Request) -> JSONResponse:
     """SPARQL endpoint for executing queries"""

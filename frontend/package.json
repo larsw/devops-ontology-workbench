@@ -1,0 +1,27 @@
+{
+  "name": "devops-ontology-workbench-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for DevOps Ontology Workbench",
+  "main": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/d3": "^7.4.3",
+    "@types/node": "^24.0.10",
+    "vite": "^7.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "d3": "^7.9.0",
+    "n3": "^1.26.0"
+  }
+}
