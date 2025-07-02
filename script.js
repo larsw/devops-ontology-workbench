@@ -291,44 +291,61 @@ function drawGraph() {
       .style("stroke-width", "2px");
   }
 
-  // Add keyboard shortcuts for zoom and panel controls
-  d3.select("body").on("keydown", (event) => {
-    if (event.key === "r" || event.key === "R") {
-      // Reset zoom with 'R' key
-      svg.transition()
-        .duration(750)
-        .call(zoom.transform, d3.zoomIdentity);
-    } else if (event.key === "+" || event.key === "=") {
-      // Zoom in with '+' key
-      svg.transition()
-        .duration(200)
-        .call(zoom.scaleBy, 1.5);
-    } else if (event.key === "-" || event.key === "_") {
-      // Zoom out with '-' key
-      svg.transition()
-        .duration(200)
-        .call(zoom.scaleBy, 1 / 1.5);
-    } else if (event.key === "l" || event.key === "L") {
-      // Toggle legend with 'L' key
-      toggleLegend();
-    } else if (event.key === "i" || event.key === "I") {
-      // Toggle instructions with 'I' key
-      toggleInstructions();
-    } else if (event.key === "p" || event.key === "P") {
-      // Toggle right panel with 'P' key
-      togglePanel('nodeDetailsPanel');
-    } else if (event.key === "q" || event.key === "Q") {
-      // Toggle query panel with 'Q' key
-      togglePanel('queryContainer');
-    }
-  });
-
   // Add legend
   createLegend(svg);
 
   // Add instructions
   addInstructions(svg);
 }
+
+// Global keyboard shortcuts
+document.addEventListener('keydown', (event) => {
+  // Don't intercept keys when user is typing in input fields
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
+    return;
+  }
+  
+  console.log(`Key pressed: ${event.key}`);
+  
+  if (event.key === "r" || event.key === "R") {
+    // Reset zoom with 'R' key
+    if (globalSvg && globalZoom) {
+      globalSvg.transition()
+        .duration(750)
+        .call(globalZoom.transform, d3.zoomIdentity);
+    }
+  } else if (event.key === "+" || event.key === "=") {
+    // Zoom in with '+' key
+    if (globalSvg && globalZoom) {
+      globalSvg.transition()
+        .duration(200)
+        .call(globalZoom.scaleBy, 1.5);
+    }
+  } else if (event.key === "-" || event.key === "_") {
+    // Zoom out with '-' key
+    if (globalSvg && globalZoom) {
+      globalSvg.transition()
+        .duration(200)
+        .call(globalZoom.scaleBy, 1 / 1.5);
+    }
+  } else if (event.key === "h" || event.key === "H") {
+    // Toggle legend with 'H' key (Help/legend)
+    event.preventDefault();
+    toggleLegend();
+  } else if (event.key === "?" || event.key === "/") {
+    // Toggle instructions with '?' key (Help/instructions)
+    event.preventDefault();
+    toggleInstructions();
+  } else if (event.key === "p" || event.key === "P") {
+    // Toggle right panel with 'P' key
+    event.preventDefault();
+    togglePanel('nodeDetailsPanel');
+  } else if (event.key === "q" || event.key === "Q") {
+    // Toggle query panel with 'Q' key
+    event.preventDefault();
+    togglePanel('queryContainer');
+  }
+});
 
 function addInstructions(svg) {
   const instructions = svg.append("g")
@@ -342,8 +359,8 @@ function addInstructions(svg) {
     "📍 Click 'Reset Zoom' or press R",
     "⌨️ Use +/- keys to zoom",
     "📊 Use SPARQL panel below to query data",
-    "🔤 Press L to toggle legend",
-    "ℹ️ Press I to toggle instructions",
+    "🔤 Press H to toggle legend",
+    "❓ Press ? to toggle instructions",
     "📋 Press P to toggle details panel",
     "🔍 Press Q to toggle query panel"
   ];
@@ -550,15 +567,6 @@ function addCustomTabButtons() {
   // Create a custom tab bar above yasgui
   const customTabBar = document.createElement('div');
   customTabBar.id = 'custom-sample-tabs';
-  customTabBar.style.cssText = `
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-bottom: none;
-    padding: 8px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  `;
   
   const sampleQueries = [
     {
@@ -602,19 +610,6 @@ SELECT ?source ?target ?relation WHERE {
   sampleQueries.forEach((sample, index) => {
     const button = document.createElement('button');
     button.textContent = sample.name;
-    button.style.cssText = `
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      transition: background-color 0.2s;
-    `;
-    
-    button.onmouseover = () => button.style.background = '#0056b3';
-    button.onmouseout = () => button.style.background = '#007bff';
     
     button.onclick = () => {
       if (yasgui && yasgui.getTab() && yasgui.getTab().yasqe) {
@@ -631,20 +626,7 @@ SELECT ?source ?target ?relation WHERE {
   // Add a reset button
   const resetButton = document.createElement('button');
   resetButton.textContent = 'Reset Query';
-  resetButton.style.cssText = `
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    margin-left: 16px;
-    transition: background-color 0.2s;
-  `;
-  
-  resetButton.onmouseover = () => resetButton.style.background = '#545b62';
-  resetButton.onmouseout = () => resetButton.style.background = '#6c757d';
+  resetButton.className = 'reset';
   
   resetButton.onclick = () => {
     if (yasgui && yasgui.getTab() && yasgui.getTab().yasqe) {
@@ -1069,325 +1051,6 @@ function registerTrigPlugin() {
   }
 }
 
-function convertSparqlToJsonLd(results) {
-  if (!results || !results.getBindings) {
-    return { error: "No valid SPARQL results to convert" };
-  }
-  
-  const bindings = results.getBindings();
-  const variables = results.getVariables() || [];
-  
-  // Create JSON-LD context
-  const context = {
-    "@context": {
-      "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-      "devops": "https://w3id.org/devops-infra/",
-      "ex": "https://example.org/devops/",
-      "dct": "http://purl.org/dc/terms/",
-      "xsd": "http://www.w3.org/2001/XMLSchema#"
-    }
-  };
-  
-  // Convert SPARQL results to JSON-LD graph
-  const graph = [];
-  const processedEntities = new Set();
-  
-  bindings.forEach((binding, index) => {
-    // Try to identify the main subject
-    let subject = null;
-    let subjectVar = null;
-    
-    // Look for variables that look like subjects (commonly 'subject', 'entity', 's', etc.)
-    const subjectCandidates = ['subject', 'entity', 's', 'resource', 'item'];
-    for (const candidate of subjectCandidates) {
-      if (variables.includes(candidate) && binding[candidate]) {
-        subject = binding[candidate];
-        subjectVar = candidate;
-        break;
-      }
-    }
-    
-    // If no obvious subject, use the first URI variable
-    if (!subject) {
-      for (const variable of variables) {
-        const value = binding[variable];
-        if (value && value.termType === 'NamedNode') {
-          subject = value;
-          subjectVar = variable;
-          break;
-        }
-      }
-    }
-    
-    if (subject && subject.termType === 'NamedNode') {
-      const subjectId = subject.value;
-      
-      // Skip if we've already processed this entity
-      if (processedEntities.has(subjectId)) {
-        return;
-      }
-      processedEntities.add(subjectId);
-      
-      const entity = {
-        "@id": subjectId
-      };
-      
-      // Add properties from this binding
-      variables.forEach(variable => {
-        if (variable !== subjectVar && binding[variable]) {
-          const value = binding[variable];
-          const propertyName = variable;
-          
-          if (value.termType === 'NamedNode') {
-            // URI reference
-            if (propertyName === 'type') {
-              entity["@type"] = value.value;
-            } else {
-              entity[propertyName] = { "@id": value.value };
-            }
-          } else if (value.termType === 'Literal') {
-            // Literal value
-            if (value.datatype) {
-              entity[propertyName] = {
-                "@value": value.value,
-                "@type": value.datatype.value
-              };
-            } else if (value.language) {
-              entity[propertyName] = {
-                "@value": value.value,
-                "@language": value.language
-              };
-            } else {
-              entity[propertyName] = value.value;
-            }
-          } else {
-            // Blank node or other
-            entity[propertyName] = value.value;
-          }
-        }
-      });
-      
-      graph.push(entity);
-    } else {
-      // If no clear subject, create a result object
-      const result = {
-        "@id": `_:result${index}`,
-        "@type": "sparql:Result"
-      };
-      
-      variables.forEach(variable => {
-        if (binding[variable]) {
-          const value = binding[variable];
-          if (value.termType === 'NamedNode') {
-            result[variable] = { "@id": value.value };
-          } else if (value.termType === 'Literal') {
-            if (value.datatype) {
-              result[variable] = {
-                "@value": value.value,
-                "@type": value.datatype.value
-              };
-            } else {
-              result[variable] = value.value;
-            }
-          } else {
-            result[variable] = value.value;
-          }
-        }
-      });
-      
-      graph.push(result);
-    }
-  });
-  
-  // Return JSON-LD document
-  return {
-    ...context,
-    "@graph": graph,
-    "sparql:resultCount": bindings.length,
-    "sparql:variables": variables
-  };
-}
-
-function convertSparqlToTurtle(results) {
-  if (!results || !results.getBindings) {
-    return "# No valid SPARQL results to convert";
-  }
-  
-  const bindings = results.getBindings();
-  const variables = results.getVariables() || [];
-  
-  // Create Turtle output with prefixes
-  let turtle = `# Turtle serialization of SPARQL results
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix devops: <https://w3id.org/devops-infra/> .
-@prefix ex: <https://example.org/devops/> .
-@prefix dct: <http://purl.org/dc/terms/> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-`;
-
-  // Group bindings by subject to create proper Turtle triples
-  const subjectGroups = new Map();
-  
-  bindings.forEach((binding, index) => {
-    // Try to identify the main subject (usually the first URI variable)
-    let subject = null;
-    let predicates = new Map();
-    
-    for (const variable of variables) {
-      const value = binding[variable];
-      if (value && value.type === 'uri') {
-        if (!subject) {
-          subject = value.value;
-        } else {
-          // This could be a predicate or object
-          const predicateKey = `pred_${variable}`;
-          predicates.set(predicateKey, value.value);
-        }
-      } else if (value) {
-        // Literal or other value
-        const predicateKey = `prop_${variable}`;
-        predicates.set(predicateKey, formatTurtleValue(value));
-      }
-    }
-    
-    if (subject) {
-      if (!subjectGroups.has(subject)) {
-        subjectGroups.set(subject, new Map());
-      }
-      
-      // Add predicates to this subject
-      for (const [pred, obj] of predicates) {
-        subjectGroups.get(subject).set(pred, obj);
-      }
-    }
-  });
-  
-  // Generate Turtle triples
-  for (const [subject, predicates] of subjectGroups) {
-    turtle += `<${subject}>\n`;
-    
-    const predArray = Array.from(predicates.entries());
-    predArray.forEach(([pred, obj], index) => {
-      const isLast = index === predArray.length - 1;
-      turtle += `    ${pred} ${obj}${isLast ? ' .' : ' ;'}\n`;
-    });
-    
-    turtle += '\n';
-  }
-  
-  return turtle;
-}
-
-function convertSparqlToTrig(results) {
-  if (!results || !results.getBindings) {
-    return "# No valid SPARQL results to convert";
-  }
-  
-  const bindings = results.getBindings();
-  const variables = results.getVariables() || [];
-  
-  // Create TriG output with prefixes and named graphs
-  let trig = `# TriG serialization of SPARQL results
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix devops: <https://w3id.org/devops-infra/> .
-@prefix ex: <https://example.org/devops/> .
-@prefix dct: <http://purl.org/dc/terms/> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-# Default graph
-{
-`;
-
-  // Process bindings similar to Turtle but within a named graph
-  const subjectGroups = new Map();
-  
-  bindings.forEach((binding, index) => {
-    let subject = null;
-    let predicates = new Map();
-    
-    for (const variable of variables) {
-      const value = binding[variable];
-      if (value && value.type === 'uri') {
-        if (!subject) {
-          subject = value.value;
-        } else {
-          const predicateKey = `pred_${variable}`;
-          predicates.set(predicateKey, value.value);
-        }
-      } else if (value) {
-        const predicateKey = `prop_${variable}`;
-        predicates.set(predicateKey, formatTurtleValue(value));
-      }
-    }
-    
-    if (subject) {
-      if (!subjectGroups.has(subject)) {
-        subjectGroups.set(subject, new Map());
-      }
-      
-      for (const [pred, obj] of predicates) {
-        subjectGroups.get(subject).set(pred, obj);
-      }
-    }
-  });
-  
-  // Generate TriG triples within the default graph
-  for (const [subject, predicates] of subjectGroups) {
-    trig += `  <${subject}>\n`;
-    
-    const predArray = Array.from(predicates.entries());
-    predArray.forEach(([pred, obj], index) => {
-      const isLast = index === predArray.length - 1;
-      trig += `      ${pred} ${obj}${isLast ? ' .' : ' ;'}\n`;
-    });
-    
-    trig += '\n';
-  }
-  
-  trig += '}\n\n';
-  
-  // Add a metadata graph
-  trig += `# Metadata graph
-<urn:sparql:results:metadata> {
-  <urn:sparql:results> a <http://www.w3.org/ns/sparql-service-description#ResultSet> ;
-    <http://purl.org/dc/terms/created> "${new Date().toISOString()}"^^xsd:dateTime ;
-    <http://www.w3.org/ns/sparql-service-description#resultVariable> `;
-  
-  variables.forEach((variable, index) => {
-    trig += `"${variable}"`;
-    if (index < variables.length - 1) trig += ', ';
-  });
-  
-  trig += ' .\n}\n';
-  
-  return trig;
-}
-
-function formatTurtleValue(value) {
-  if (!value) return '""';
-  
-  switch (value.type) {
-    case 'uri':
-      return `<${value.value}>`;
-    case 'literal':
-      if (value.datatype) {
-        return `"${value.value}"^^<${value.datatype}>`;
-      } else if (value['xml:lang']) {
-        return `"${value.value}"@${value['xml:lang']}`;
-      } else {
-        return `"${value.value}"`;
-      }
-    case 'bnode':
-      return `_:${value.value}`;
-    default:
-      return `"${value.value}"`;
-  }
-}
-
 // Node selection and details panel functionality
 let selectedNode = null;
 let selectedElement = null;
@@ -1541,12 +1204,6 @@ svg.on("click", function(event) {
   }
 });
 
-// Add legend
-createLegend(svg);
-
-// Add instructions
-addInstructions(svg);
-
 // Panel management functions
 function togglePanel(panelId) {
   const panel = document.getElementById(panelId);
@@ -1574,21 +1231,62 @@ let legendVisible = true;
 let instructionsVisible = true;
 
 function toggleLegend() {
+  console.log("toggleLegend called");
   const legend = document.querySelector('.legend');
+  console.log("Legend element:", legend);
   if (legend) {
     legendVisible = !legendVisible;
     legend.classList.toggle('hidden', !legendVisible);
     console.log(`Legend ${legendVisible ? 'shown' : 'hidden'}`);
+  } else {
+    console.error("Legend element not found");
   }
 }
 
 function toggleInstructions() {
+  console.log("toggleInstructions called");
   const instructions = document.querySelector('.instructions');
+  console.log("Instructions element:", instructions);
   if (instructions) {
     instructionsVisible = !instructionsVisible;
     instructions.classList.toggle('hidden', !instructionsVisible);
     console.log(`Instructions ${instructionsVisible ? 'shown' : 'hidden'}`);
+  } else {
+    console.error("Instructions element not found");
   }
+}
+
+// Helper function to shorten URIs using prefixes
+function shortenUri(uri, prefixes) {
+  if (!uri || !prefixes) return uri;
+  
+  for (const prefix in prefixes) {
+    const namespace = prefixes[prefix];
+    if (uri.startsWith(namespace)) {
+      return `${prefix}:${uri.substring(namespace.length)}`;
+    }
+  }
+  
+  // Common prefixes not always in the query
+  const commonPrefixes = {
+    'xsd': 'http://www.w3.org/2001/XMLSchema#',
+    'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+    'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+    'owl': 'http://www.w3.org/2002/07/owl#',
+    'dc': 'http://purl.org/dc/elements/1.1/',
+    'dct': 'http://purl.org/dc/terms/',
+    'foaf': 'http://xmlns.com/foaf/0.1/',
+    'skos': 'http://www.w3.org/2004/02/skos/core#'
+  };
+  
+  for (const prefix in commonPrefixes) {
+    const namespace = commonPrefixes[prefix];
+    if (uri.startsWith(namespace)) {
+      return `${prefix}:${uri.substring(namespace.length)}`;
+    }
+  }
+  
+  return uri;
 }
 
 // Make functions globally accessible
