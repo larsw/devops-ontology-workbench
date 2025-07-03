@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yasr Plugin Test</title>
+
+    <!-- Import Yasgui CSS from CDN -->
+    <link
+      href="https://unpkg.com/@zazuko/yasgui@4.5.0/build/yasgui.min.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+
+      .container {
+        width: 95%;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      .debug-info {
+        background: #f0f0f0;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 20px;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+      }
+
+      #yasgui {
+        min-height: 500px;
+        width: 95%;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+
+      .test-buttons {
+        margin: 20px 0;
+        display: flex;
+        gap: 10px;
+      }
+
+      .test-button {
+        padding: 10px 20px;
+        background: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .test-button:hover {
+        background: #005a9e;
+      }
+
+      .success {
+        background: #4caf50;
+      }
+
+      .error {
+        background: #f44336;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🧪 Yasr Plugin Test</h1>
+
+      <div class="test-buttons">
+        <button class="test-button" onclick="testBasicPlugin()">
+          Test Basic Plugin
+        </button>
+        <button class="test-button" onclick="testConstructQuery()">
+          Test CONSTRUCT Query
+        </button>
+        <button class="test-button" onclick="testSelectQuery()">
+          Test SELECT Query
+        </button>
+        <button class="test-button" onclick="resetYasgui()">
+          Reset Yasgui
+        </button>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+      </div>
+
+      <div id="yasgui"></div>
+
+      <div class="debug-info" id="debug-info">
+        Initializing test environment...
+      </div>
+    </div>
+
+    <!-- Import Yasgui JavaScript from CDN -->
+    <script src="https://unpkg.com/@zazuko/yasgui@4.5.0/build/yasgui.min.js"></script>
+
+    <script>
+      // Debug logging function
+      function log(message) {
+        const debugInfo = document.getElementById("debug-info");
+        const timestamp = new Date().toLocaleTimeString();
+        debugInfo.textContent += `[${timestamp}] ${message}\n`;
+        console.log(`[${timestamp}] ${message}`);
+      }
+
+      function clearLog() {
+        document.getElementById("debug-info").textContent = "";
+      }
+
+      // Initialize test environment
+      let yasgui = null;
+
+      // Define the CustomTest plugin according to official YASR documentation
+      class CustomTestPlugin {
+        constructor(yasr) {
+          log("🏗️ CustomTestPlugin constructor called");
+          this.yasr = yasr;
+
+          // Set priority for plugin selection order
+          this.priority = 15;
+
+          // Set to false to show this plugin in the selection tabs
+          this.hideFromSelection = false;
+        }
+
+        // Required: Check if this plugin can handle the current results
+        canHandleResults() {
+          log("🤔 CustomTestPlugin.canHandleResults() called");
+          // This plugin can handle any type of results
+          return true;
+        }
+
+        // Required: Get the icon for the plugin tab
+        getIcon() {
+          log("🎨 CustomTestPlugin.getIcon() called");
+          return "<span>🎯</span>";
+        }
+
+        // Required: Draw the result set
+        draw() {
+          log("🎨 CustomTestPlugin.draw() called");
+
+          try {
+            // Get the results container
+            const container = this.yasr.resultsEl;
+            if (!container) {
+              log("❌ No results container found");
+              return;
+            }
+
+            // Clear the results container
+            container.innerHTML = "";
+
+            // Create our plugin UI
+            const pluginDiv = document.createElement("div");
+            pluginDiv.style.cssText = `
+                        padding: 20px;
+                        text-align: center;
+                        background: linear-gradient(135deg, #42a5f5 0%, #478ed1 50%, #0d47a1 100%);
+                        color: white;
+                        border-radius: 8px;
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                        margin: 10px;
+                    `;
+
+            // Get some info about the results
+            let resultInfo = "No results available";
+            let resultType = "Unknown";
+            let resultCount = 0;
+
+            if (this.yasr.results) {
+              if (this.yasr.results.getVariables) {
+                const vars = this.yasr.results.getVariables();
+                resultType = "SELECT";
+                resultInfo = `Variables: ${vars ? vars.join(", ") : "none"}`;
+
+                // Try to get binding count
+                if (this.yasr.results.getBindings) {
+                  const bindings = this.yasr.results.getBindings();
+                  resultCount = bindings ? bindings.length : 0;
+                }
+              } else if (this.yasr.results.getBoolean !== undefined) {
+                resultType = "ASK";
+                resultInfo = `Result: ${this.yasr.results.getBoolean()}`;
+              } else if (this.yasr.results.getAsJson) {
+                resultType = "CONSTRUCT/DESCRIBE";
+                const json = this.yasr.results.getAsJson();
+                resultCount = json
+                  ? Array.isArray(json)
+                    ? json.length
+                    : Object.keys(json).length
+                  : 0;
+                resultInfo = `Triples/Resources: ${resultCount}`;
+              }
+            }
+
+            pluginDiv.innerHTML = `
+                        <h3 style="margin: 0 0 15px 0;">🎯 Custom Test Plugin</h3>
+                        <p style="margin: 0 0 20px 0;">Successfully integrated YASR plugin!</p>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                            <strong>Query Results:</strong><br>
+                            Type: ${resultType}<br>
+                            Info: ${resultInfo}<br>
+                            Count: ${resultCount}<br>
+                            Rendered at: ${new Date().toLocaleTimeString()}
+                        </div>
+                        <button onclick="alert('Custom plugin is working perfectly!')" style="
+                            background: rgba(255,255,255,0.2);
+                            border: 2px solid rgba(255,255,255,0.4);
+                            color: white;
+                            padding: 10px 20px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-weight: bold;
+                            ">Test Button</button>
+                        `;
+
+            // Add to container
+            container.appendChild(pluginDiv);
+
+            log("✅ Plugin UI created successfully");
+          } catch (error) {
+            log("❌ Error in draw(): " + error.message);
+            const errorDiv = document.createElement("div");
+            errorDiv.textContent = "Error: " + error.message;
+            errorDiv.style.cssText = "color: red; padding: 20px;";
+
+            // Fallback container access
+            const container = this.yasr.resultsEl || this.yasr.getContainer();
+            if (container) {
+              container.appendChild(errorDiv);
+            }
+          }
+        }
+      }
+
+      // Register the plugin with Yasr (simplified approach)
+      function registerPlugin() {
+        log("📦 Checking plugin registration options...");
+
+        try {
+          // Check if Yasr is available
+          if (typeof Yasr === "undefined") {
+            log("❌ Yasr is not available globally");
+            return false;
+          }
+
+          log("✅ Yasr is available");
+
+          // Only try the safest registration method
+          if (Yasr.plugins && typeof Yasr.plugins === "object") {
+            log("  - Yasr.plugins is available, storing for later use");
+            return true;
+          } else {
+            log(
+              "  - Yasr.plugins not available, will use manual injection only"
+            );
+            return false;
+          }
+        } catch (error) {
+          log("❌ Error checking plugin registration: " + error.message);
+          return false;
+        }
+      }
+
+      // Initialize Yasgui
+      function initializeYasgui() {
+        log("🚀 Initializing Yasgui...");
+
+        // Prevent double initialization
+        if (yasgui) {
+          log("⚠️ Yasgui already initialized, skipping...");
+          return;
+        }
+
+        try {
+          // Check if Yasgui is available
+          if (typeof Yasgui === "undefined") {
+            log("❌ Yasgui is not available globally");
+            return;
+          }
+
+          log("✅ Yasgui is available");
+
+          // Initialize Yasgui with custom configuration (no early plugin registration)
+          yasgui = new Yasgui(document.getElementById("yasgui"), {
+            requestConfig: {
+              endpoint: "http://localhost:8000/sparql",
+              method: "POST",
+              headers: {
+                Accept: "application/sparql-results+json",
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+            },
+            copyEndpointOnNewTab: false,
+          });
+
+          log("✅ Yasgui initialized successfully");
+
+          // Set a default query
+          const defaultQuery = `SELECT ?s ?p ?o WHERE {
+  ?s ?p ?o
+} LIMIT 10`;
+
+          yasgui.getTab().yasqe.setValue(defaultQuery);
+
+          // Register plugin after Yasgui is fully initialized
+          setTimeout(() => {
+            log("🔄 Attempting post-initialization plugin setup...");
+            debugYasrPlugins();
+            attemptManualPluginInjection();
+          }, 1000);
+        } catch (error) {
+          log("❌ Error initializing Yasgui: " + error.message);
+        }
+      }
+
+      // Try to manually inject the plugin into the Yasr instance
+      function attemptManualPluginInjection() {
+        log("� Attempting manual plugin injection...");
+
+        const tab = yasgui.getTab();
+        if (!tab || !tab.yasr) {
+          log("❌ No Yasr instance found");
+          return;
+        }
+
+        try {
+          const yasr = tab.yasr;
+
+          // Try to inject the plugin directly
+          if (yasr.plugins) {
+            log("  - Injecting into yasr.plugins...");
+            yasr.plugins["CustomTest"] = CustomTestPlugin;
+          }
+
+          // Try to create an instance and add it
+          log("  - Creating plugin instance...");
+          const pluginInstance = new CustomTestPlugin(yasr);
+
+          // Try to add it to available plugins
+          if (yasr.availablePlugins) {
+            yasr.availablePlugins["CustomTest"] = pluginInstance;
+            log("  - ✅ Added to availablePlugins");
+          } else if (yasr.plugins) {
+            yasr.plugins["CustomTest"] = pluginInstance;
+            log("  - ✅ Added to plugins");
+          }
+
+          // Force a refresh
+          if (yasr.draw) {
+            yasr.draw();
+            log("  - ✅ Forced redraw");
+          }
+
+          // Try to refresh plugin selectors
+          if (yasr.refreshPluginSelectors) {
+            yasr.refreshPluginSelectors();
+            log("  - ✅ Refreshed plugin selectors");
+          }
+
+          log("✅ Manual plugin injection completed");
+        } catch (error) {
+          log("❌ Manual plugin injection failed: " + error.message);
+        }
+      }
+
+      // Debug function to check Yasr plugins
+      function debugYasrPlugins() {
+        log("🔍 Debugging Yasr plugins...");
+
+        const tab = yasgui.getTab();
+        if (tab && tab.yasr) {
+          const yasr = tab.yasr;
+          log("✅ Yasr instance found");
+
+          // Check various plugin locations
+          const locations = [
+            "plugins",
+            "availablePlugins",
+            "_plugins",
+            "registeredPlugins",
+          ];
+
+          locations.forEach((location) => {
+            if (yasr[location]) {
+              const plugins = Object.keys(yasr[location]);
+              log(`  - yasr.${location}: ${plugins.join(", ")}`);
+
+              if (yasr[location].CustomTest) {
+                log(`  - ✅ CustomTest found in ${location}`);
+              }
+            } else {
+              log(`  - yasr.${location}: not available`);
+            }
+          });
+
+          // Check methods
+          const methods = [
+            "getPluginSelectors",
+            "addPlugin",
+            "refreshPluginSelectors",
+            "selectPlugin",
+            "draw",
+          ];
+
+          methods.forEach((method) => {
+            if (typeof yasr[method] === "function") {
+              log(`  - yasr.${method}(): available`);
+            } else {
+              log(`  - yasr.${method}(): not available`);
+            }
+          });
+
+          // Try to get current plugin info
+          if (yasr.getSelectedPlugin) {
+            const current = yasr.getSelectedPlugin();
+            log(`  - Current plugin: ${current || "none"}`);
+          }
+        } else {
+          log("❌ Yasr instance not found");
+        }
+      }
+
+      // Test functions for buttons
+      function testBasicPlugin() {
+        log("🧪 Testing basic plugin functionality...");
+
+        if (!yasgui) {
+          log("❌ Yasgui not initialized");
+          return;
+        }
+
+        log("  - Yasgui available: ✅");
+        log("  - Current tab: " + (yasgui.getTab() ? "✅" : "❌"));
+        log("  - Yasr available: " + (yasgui.getTab().yasr ? "✅" : "❌"));
+
+        // Try safe plugin registration first
+        registerPlugin();
+
+        // Run detailed debugging
+        debugYasrPlugins();
+
+        // Try manual injection
+        attemptManualPluginInjection();
+      }
+
+      function testConstructQuery() {
+        log("🧪 Testing CONSTRUCT query...");
+
+        if (!yasgui) {
+          log("❌ Yasgui not initialized");
+          return;
+        }
+
+        const constructQuery = `PREFIX owl: <http://www.w3.org/2002/07/owl#>
+
+CONSTRUCT {
+  ?s a ?type .
+} WHERE {
+  ?s a ?type .
+} LIMIT 5`;
+
+        yasgui.getTab().yasqe.setValue(constructQuery);
+        log('✅ CONSTRUCT query set, click "Execute" to run it');
+      }
+
+      function testSelectQuery() {
+        log("🧪 Testing SELECT query...");
+
+        if (!yasgui) {
+          log("❌ Yasgui not initialized");
+          return;
+        }
+
+        const selectQuery = `SELECT ?s ?p ?o WHERE {
+  ?s ?p ?o
+} LIMIT 10`;
+
+        yasgui.getTab().yasqe.setValue(selectQuery);
+        log('✅ SELECT query set, click "Execute" to run it');
+      }
+
+      // Reset Yasgui function in case it gets broken
+      function resetYasgui() {
+        log("🔄 Resetting Yasgui...");
+
+        try {
+          // Clear the container
+          const container = document.getElementById("yasgui");
+          container.innerHTML = "";
+
+          // Reset the yasgui variable
+          yasgui = null;
+
+          // Wait a moment then reinitialize
+          setTimeout(() => {
+            initializeYasgui();
+          }, 100);
+        } catch (error) {
+          log("❌ Error resetting Yasgui: " + error.message);
+        }
+      }
+
+      // Initialize everything when the page loads
+      document.addEventListener("DOMContentLoaded", function () {
+        log("📄 DOM Content Loaded");
+
+        // Small delay to ensure all scripts are loaded
+        setTimeout(() => {
+          if (!yasgui) {
+            initializeYasgui();
+          }
+        }, 100);
+      });
+
+      // Fallback initialization when window loads (only if not already initialized)
+      window.addEventListener("load", function () {
+        log("🌐 Window Load Event");
+
+        // Additional delay to ensure DOMContentLoaded handler had time to run
+        setTimeout(() => {
+          if (!yasgui) {
+            log("🔄 Fallback initialization triggered");
+            initializeYasgui();
+          } else {
+            log("✅ Yasgui already initialized, skipping fallback");
+          }
+        }, 200);
+      });
+    </script>
+  </body>
+</html>

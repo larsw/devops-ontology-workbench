@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yasr Plugin Test - Vite Build</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+
+      .container {
+        width: 95%;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      .debug-info {
+        background: #f0f0f0;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 20px;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+      }
+
+      #yasgui {
+        min-height: 500px;
+        width: 95%;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+
+      .test-buttons {
+        margin: 20px 0;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .test-button {
+        padding: 10px 20px;
+        background: #007acc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .test-button:hover {
+        background: #005a9e;
+      }
+
+      .success {
+        background: #4caf50;
+      }
+
+      .error {
+        background: #f44336;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🧪 Yasr Plugin Test (Vite Build)</h1>
+
+      <div class="test-buttons">
+        <button class="test-button" onclick="clearLog()">
+          Clear Log
+        </button>
+      </div>
+
+      <div id="yasgui"></div>
+      
+      <div class="debug-info" id="debug-info">
+Initializing test environment...
+      </div>
+    </div>
+
+    <!-- Import the TypeScript module -->
+    <script type="module" src="/src/test-plugin-clean.ts"></script>
+  </body>
+</html>

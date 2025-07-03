@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { resolve } from 'path'
 
 export default defineConfig({
   root: '.',
@@ -13,6 +14,11 @@ export default defineConfig({
     minify: 'esbuild',
     cssMinify: true,
     rollupOptions: {
+      // Multi-page app setup
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        test: resolve(__dirname, 'test.html')
+      },
       // Configure manual chunks for better code splitting
       output: {
         manualChunks: {

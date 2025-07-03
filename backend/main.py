@@ -3,7 +3,7 @@
 FastAPI backend for DevOps Ontology SPARQL queries
 """
 
-from typing import Dict, Any, Union, Optional
+from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Form, Request
 from fastapi.staticfiles import StaticFiles
@@ -144,7 +144,7 @@ async def favicon():
 
 @app.get("/{filename}")
 async def serve_static_files(filename: str) -> HTMLResponse:
-    """Serve static files (CSS, JS, etc.)"""
+    """Serve static files (CSS, JS, HTML, etc.)"""
     file_path = Path(filename)
     if file_path.exists():
         if filename.endswith('.js'):
@@ -155,6 +155,10 @@ async def serve_static_files(filename: str) -> HTMLResponse:
             with open(file_path, "r") as f:
                 content = f.read()
             return HTMLResponse(content=content, media_type="text/css")
+        elif filename.endswith('.html'):
+            with open(file_path, "r") as f:
+                content = f.read()
+            return HTMLResponse(content=content, media_type="text/html")
         elif filename.endswith('.ttl'):
             with open(file_path, "r") as f:
                 content = f.read()
@@ -299,7 +303,7 @@ def execute_sparql_query(query_string: str) -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SPARQL query error: {str(e)}")
 
-def format_sparql_value(value: Union[URIRef, Literal, Any]) -> Dict[str, Any]:
+def format_sparql_value(value: Any) -> Dict[str, Any]:
     """Format an RDF value for SPARQL JSON results"""
     if isinstance(value, URIRef):
         return {
