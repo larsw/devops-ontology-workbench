@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Yasgui + Custom Yasr Plugin (working)</title>
+  <link rel="stylesheet" href="https://unpkg.com/@zazuko/yasgui/build/yasgui.min.css" />
+  <style>
+    html, body, #yasgui {
+      width: 100%; height: 100vh; margin: 0; padding: 0;
+    }
+  </style>
+  <script src="https://unpkg.com/@zazuko/yasgui/build/yasgui.min.js"></script>
+</head>
+<body>
+  <div id="yasgui"></div>
+
+  <script>
+
+    class CustomPluginConfig {
+      title = ""
+
+      constructor(title) {
+        this.title = title;
+      }
+    }
+
+    class CustomPlugin {
+      constructor(yasr) {
+        this.yasr = yasr;
+        this.config = CustomPlugin.defaults;
+        this.container = document.createElement('div');
+        this.container.innerHTML = `
+          <pre class="custom-results"></pre>`;
+      }
+
+      static defaults = new CustomPluginConfig("yoho");
+
+      draw() {
+        console.log('CustomPlugin draw called');
+        const bindings = this.yasr.results.getBindings();
+        const div = document.createElement('div');
+        // append a h2 and this.container to the div
+        const title = this.config.title || 'Custom Plugin Results';
+        div.innerHTML = `<h3>${title}</h3>`;
+        div.appendChild(this.container);
+        this.container.querySelector('.custom-results').textContent =
+          JSON.stringify(bindings, null, 2);
+
+        this.yasr.resultsEl.appendChild(div);
+      }
+
+      canHandleResults() { 
+        // !!this.yasr.results && this.yasr.results.getVariables() ...
+        return true; 
+      }
+
+      getIcon() { 
+        const iconElement = document.createElement('span')
+        iconElement.innerHTML = '🎯'
+        iconElement.style.fontSize = '16px'
+        return iconElement
+      }
+
+      getLabel() { return 'Custom'; }
+      
+      destroy() { this.container.remove(); }
+    }
+
+    Yasr.registerPlugin('Custom', CustomPlugin);
+
+    const yasgui = new Yasgui(document.getElementById('yasgui'));
+
+    // // Optional: automatically select custom plugin after query execution
+    // yasgui.on('queryResponse', (_instance, _response, tabId) => {
+    //   const tab = yasgui.getTab(tabId);
+    //   tab.yasr.selectPlugin('Custom');
+    // });
+
+    // Set example query for testing convenience
+    yasgui.getTab().yasqe.setValue('SELECT ?type (COUNT(?s) AS ?count)\nWHERE { ?s a ?type }\nGROUP BY ?type\nLIMIT 10');
+  </script>
+</body>
+</html>
+
