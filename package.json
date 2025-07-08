@@ -18,6 +18,7 @@
     "start:frontend": "cd frontend && bun run preview"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.2",
     "concurrently": "^9.2.0"
   },
   "keywords": ["rdf", "sparql", "devops", "ontology", "visualization"],

@@ -2,8 +2,14 @@
  * SPARQL interface and Yasgui integration
  */
 import Yasgui from '@zazuko/yasgui';
-import Yasr from '@zazuko/yasr';
 import '@zazuko/yasgui/build/yasgui.min.css';
+
+// --- GLOBAL SINGLETON YASR/YASGUI REGISTRATION ---
+// Always use the same Yasgui/Yasr instance everywhere
+if (typeof window !== 'undefined') {
+  (window as any).Yasgui = Yasgui;
+  (window as any).Yasr = (Yasgui as any).Yasr;
+}
 import type { AppState } from './types.js';
 import { sampleQueries, defaultQuery } from './constants.js';
 
@@ -35,13 +41,20 @@ export class SparqlInterface {
       yasguiContainer.innerHTML = '';
     }
 
-    // Register plugins before initializing Yasgui
-    this.registerJsonLdPlugin();
-    this.registerTurtlePlugin();
-    this.registerTrigPlugin();
-    this.registerConstructVisualizationPlugin();
+
+    // Always use the global Yasr instance for plugin registration
+    const Yasr = (window as any).Yasr;
+    // Check if Yasr is available
+    console.log('🔍 Yasr availability check (global):', typeof Yasr, Yasr);
+
+    // Register plugins BEFORE initializing Yasgui
+    this.registerConstructVisualizationPlugin(Yasr);
+    this.registerJsonLdPlugin(Yasr);
+    this.registerTurtlePlugin(Yasr);
+    this.registerTrigPlugin(Yasr);
 
     // Initialize Yasgui with proper endpoint and custom configuration
+    console.log('🔍 Creating Yasgui instance...');
     state.yasgui = new Yasgui(document.getElementById("yasgui"), {
       requestConfig: {
         endpoint: "http://localhost:8000/sparql",
@@ -54,6 +67,8 @@ export class SparqlInterface {
       copyEndpointOnNewTab: false
     });
 
+    console.log('🔍 Yasgui instance created:', state.yasgui);
+
     // Set default query
     state.yasgui.getTab().yasqe.setValue(defaultQuery);
 
@@ -64,6 +79,18 @@ export class SparqlInterface {
     setTimeout(() => {
       this.addCustomTabButtons(state);
     }, 500);
+
+    // Make debugging info available globally
+
+    (window as any).yasguiDebug = {
+      yasgui: state.yasgui,
+      yasr: state.yasgui?.getTab()?.yasr,
+      availablePlugins: Yasr && Yasr.plugins ? Object.keys(Yasr.plugins) : 'No plugins object',
+      YasrGlobal: Yasr,
+      YasguiGlobal: (window as any).Yasgui
+    };
+
+    console.log('🔍 Yasgui initialization complete, debug info available at window.yasguiDebug');
   }
 
   /**
@@ -72,98 +99,80 @@ export class SparqlInterface {
   private setupResultHandling(state: AppState): void {
     if (!state.yasgui) return;
 
-    console.log('🔍 Result handling setup - relying on plugin system');
-    // The ConstructVisualizationPlugin will handle CONSTRUCT results automatically
+    console.log('🔍 Setting up result handling with custom plugin auto-selection');
+    
+    // Set up event listener for query responses to auto-select custom plugin
+    state.yasgui.on('queryResponse', (instance: any, response: any, tabId: string) => {
+      console.log('🔍 Query response received:', { response, tabId });
+      
+      // Get the current tab
+      const tab = state.yasgui.getTab(tabId);
+      if (!tab || !tab.yasr) {
+        console.log('🔍 No tab or yasr found for auto-selection');
+        return;
+      }
+      
+      // Check if this is a CONSTRUCT query result
+      if (response && response.results && response.results.type === 'construct') {
+        console.log('🔍 CONSTRUCT result detected, attempting to auto-select custom plugin');
+        
+        // Give the plugins a moment to register and detect the results
+        setTimeout(() => {
+          try {
+            // Try to select the custom plugin
+            if (tab.yasr.selectPlugin) {
+              tab.yasr.selectPlugin('ConstructVisualization');
+              console.log('🔍 Auto-selected ConstructVisualization plugin');
+            }
+          } catch (error) {
+            console.error('🔍 Error auto-selecting custom plugin:', error);
+          }
+        }, 100);
+      }
+    });
   }
 
   /**
    * Register a proper CONSTRUCT visualization plugin for Yasr
    */
-  private registerConstructVisualizationPlugin(): void {
+  private registerConstructVisualizationPlugin(Yasr: any): void {
     console.log('🔍 Starting registerConstructVisualizationPlugin...');
-    
     if (!Yasr) {
       console.error('🔍 Yasr not available!');
       return;
     }
-
-    console.log('🔍 Yasr is available:', Yasr);
-    console.log('🔍 Yasr.plugins before registration:', Yasr.plugins);
-
+    console.log('🔍 Yasr is available, registering plugin...');
     const self = this;
-    
-    // Create a proper Yasr plugin following the standard structure
-    const ConstructVisualizationPlugin = {
-      // Required: Plugin identification
-      getIcon(): string {
-        console.log('🔍 ConstructVisualizationPlugin.getIcon called');
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm.5-5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1v-1a.5.5 0 0 1 1 0ZM1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828ZM7.5 2.734v9.746c.935-.53 2.12-.603 3.213-.493 1.18.12 2.37.461 3.287.811V2.828c-.885-.37-2.154-.769-3.388-.893-.114-.01-.227-.018-.339-.025v.025c-.14 0-.333.024-.773.024Z"/>
-        </svg>`;
-      },
-
-      // Required: Plugin name/label
-      label: "Graph View",
-
-      // Required: Priority (higher = appears first in tabs)
-      priority: 15,
-
-      // Required: Determine if this plugin can handle the current results
-      canHandleResults(yasr: any): boolean {
-        console.log('🔍 ConstructVisualizationPlugin.canHandleResults called with yasr:', yasr);
-        
+    // --- DEBUG: Remove any old-style plugin registration ---
+    if (Yasr.plugins && typeof Yasr.plugins['ConstructVisualization'] !== 'undefined') {
+      console.warn('⚠️ Removing old ConstructVisualization plugin registration (not a class):', Yasr.plugins['ConstructVisualization']);
+      delete Yasr.plugins['ConstructVisualization'];
+    }
+    // --- END DEBUG ---
+    class ConstructVisualizationPlugin {
+      yasr: any;
+      container: HTMLElement;
+      config: any;
+      static defaults = {
+        title: "CONSTRUCT Results Visualizer"
+      };
+      constructor(yasr: any) {
+        console.log('🔍 ConstructVisualizationPlugin constructor called');
+        this.yasr = yasr;
+        this.config = ConstructVisualizationPlugin.defaults;
+        this.container = document.createElement('div');
+        this.container.className = 'construct-plugin-container';
+        this.container.innerHTML = `<pre class="custom-results"></pre>`;
+      }
+      draw(): void {
+        console.log('🔍 ConstructVisualizationPlugin.draw called');
         try {
-          // Check if we have turtle data in the results
-          let hasTurtleData = false;
-          let isConstructType = false;
-          
-          if (yasr && yasr.results) {
-            // Check if this is a construct result with turtle data
-            hasTurtleData = yasr.results.turtle && typeof yasr.results.turtle === 'string';
-            isConstructType = yasr.results.type === 'construct';
-            
-            console.log('🔍 Plugin detection:', { 
-              hasTurtleData, 
-              isConstructType, 
-              resultType: yasr.results.type,
-              turtleLength: yasr.results.turtle ? yasr.results.turtle.length : 0
-            });
-          }
-          
-          // This plugin can handle results if we have turtle data from a CONSTRUCT query
-          const canHandle = hasTurtleData && isConstructType;
-          console.log('🔍 Plugin can handle results:', canHandle);
-          
-          return canHandle;
-        } catch (error) {
-          console.error('🔍 Error in canHandleResults:', error);
-          return false;
-        }
-      },
-
-      // Required: Draw/render the results
-      draw(yasr: any): HTMLElement {
-        console.log('🔍 ConstructVisualizationPlugin.draw called with yasr:', yasr);
-        
-        try {
-          const container = yasr.getContainer();
-          if (!container) {
-            console.error('🔍 No container found in yasr');
-            return document.createElement('div');
-          }
-
-          // Clear the container
-          container.innerHTML = '';
-
-          // Get turtle data from results
           let turtleData = null;
-          if (yasr.results && yasr.results.turtle) {
-            turtleData = yasr.results.turtle;
+          if (this.yasr.results && this.yasr.results.turtle) {
+            turtleData = this.yasr.results.turtle;
           }
-
           console.log('🔍 Creating graph visualization UI, turtle data length:', turtleData ? turtleData.length : 0);
-
-          // Create the plugin container
+          const mainDiv = document.createElement('div');
           const pluginContainer = document.createElement('div');
           pluginContainer.style.cssText = `
             padding: 20px;
@@ -173,17 +182,12 @@ export class SparqlInterface {
             text-align: center;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           `;
-          
           pluginContainer.innerHTML = `
             <h2 style="margin: 0 0 10px 0;">🎯 CONSTRUCT Query Results</h2>
             <p style="margin: 0 0 20px 0;">Found ${turtleData ? turtleData.split('\\n').length : 0} lines of turtle data</p>
           `;
-
-          // Add buttons
           const buttonContainer = document.createElement('div');
           buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: center; align-items: center;';
-
-          // Visualize in Graph button
           const visualizeButton = document.createElement('button');
           visualizeButton.textContent = 'Visualize in Graph';
           visualizeButton.style.cssText = `
@@ -197,14 +201,12 @@ export class SparqlInterface {
             font-weight: 600;
             transition: all 0.2s ease;
           `;
-          
           visualizeButton.onmouseover = () => {
             visualizeButton.style.background = 'rgba(255,255,255,0.3)';
           };
           visualizeButton.onmouseout = () => {
             visualizeButton.style.background = 'rgba(255,255,255,0.2)';
           };
-          
           visualizeButton.onclick = () => {
             if (turtleData && self.constructHandler) {
               console.log('🔍 Visualizing CONSTRUCT results in main graph...');
@@ -215,8 +217,6 @@ export class SparqlInterface {
               self.showButtonFeedback(visualizeButton, '❌ Error', '#f44336');
             }
           };
-
-          // Restore Full Graph button
           const restoreButton = document.createElement('button');
           restoreButton.textContent = 'Restore Full Graph';
           restoreButton.style.cssText = `
@@ -230,14 +230,12 @@ export class SparqlInterface {
             font-weight: 600;
             transition: all 0.2s ease;
           `;
-          
           restoreButton.onmouseover = () => {
             restoreButton.style.background = 'rgba(255,255,255,0.2)';
           };
           restoreButton.onmouseout = () => {
             restoreButton.style.background = 'rgba(255,255,255,0.1)';
           };
-          
           restoreButton.onclick = () => {
             if (self.restoreHandler) {
               console.log('🔍 Restoring full graph...');
@@ -248,12 +246,9 @@ export class SparqlInterface {
               self.showButtonFeedback(restoreButton, '❌ Error', '#f44336');
             }
           };
-
           buttonContainer.appendChild(visualizeButton);
           buttonContainer.appendChild(restoreButton);
           pluginContainer.appendChild(buttonContainer);
-
-          // Show a preview of the turtle data
           if (turtleData) {
             const previewContainer = document.createElement('div');
             previewContainer.style.cssText = `
@@ -265,7 +260,6 @@ export class SparqlInterface {
               max-height: 200px;
               overflow-y: auto;
             `;
-            
             const preview = document.createElement('pre');
             preview.style.cssText = `
               margin: 0;
@@ -276,41 +270,57 @@ export class SparqlInterface {
               white-space: pre-wrap;
               word-wrap: break-word;
             `;
-            
-            // Show first 500 characters
             const previewText = turtleData.length > 500 
-              ? turtleData.substring(0, 500) + '\\n\\n... (truncated)'
+              ? turtleData.substring(0, 500) + '\n\n... (truncated)'
               : turtleData;
             preview.textContent = previewText;
-            
             previewContainer.appendChild(preview);
             pluginContainer.appendChild(previewContainer);
           }
-
-          // Add to container
-          container.appendChild(pluginContainer);
-
+          this.container.innerHTML = '';
+          this.container.appendChild(pluginContainer);
+          this.yasr.resultsEl.appendChild(this.container);
           console.log('🔍 Plugin UI created and added to container');
-          return pluginContainer;
         } catch (error) {
           console.error('🔍 Error in draw method:', error);
-          const errorDiv = document.createElement('div');
-          errorDiv.textContent = `Error creating graph visualization: ${error}`;
-          errorDiv.style.cssText = 'color: red; padding: 16px;';
-          return errorDiv;
+          this.container.innerHTML = `<div style="color: red; padding: 16px;">Error creating graph visualization: ${error}</div>`;
+          this.yasr.resultsEl.appendChild(this.container);
         }
       }
-    };
-
-    // Register the plugin with Yasr
-    try {
-      if (Yasr.plugins) {
-        (Yasr.plugins as any).ConstructVisualization = ConstructVisualizationPlugin;
-        console.log('🔍 ConstructVisualizationPlugin registered successfully');
-        console.log('🔍 Yasr.plugins after registration:', Object.keys(Yasr.plugins));
-      } else {
-        console.error('🔍 Yasr.plugins not available');
+      canHandleResults(): boolean {
+        if (!this.yasr || !this.yasr.results) return false;
+        if (typeof this.yasr.results.isGraph === 'function') {
+          return this.yasr.results.isGraph();
+        }
+        // Fallback: try to detect CONSTRUCT result by type or presence of turtle data
+        if (this.yasr.results.type === 'construct' || this.yasr.results.turtle) {
+          return true;
+        }
+        return false;
       }
+      getIcon(): HTMLElement {
+        console.log('🔍 ConstructVisualizationPlugin.getIcon called');
+        const iconElement = document.createElement('span');
+        iconElement.innerHTML = '🎯';
+        iconElement.style.fontSize = '16px';
+        return iconElement;
+      }
+      getLabel(): string {
+        return 'Graph View';
+      }
+      destroy(): void {
+        if (this.container && this.container.parentNode) {
+          this.container.parentNode.removeChild(this.container);
+        }
+      }
+    }
+    // Register the plugin with Yasr using the correct method
+    try {
+      Yasr.registerPlugin('ConstructVisualization', ConstructVisualizationPlugin);
+      console.log('🔍 ConstructVisualizationPlugin registered successfully with Yasr.registerPlugin');
+      // Debug: log available plugins and the actual plugin value
+      console.log('🔍 Available Yasr plugins after registration:', Object.keys(Yasr.plugins || {}));
+      console.log('🔍 ConstructVisualizationPlugin actual value:', Yasr.plugins['ConstructVisualization']);
     } catch (error) {
       console.error('🔍 Error registering plugin:', error);
     }
@@ -397,25 +407,34 @@ export class SparqlInterface {
   /**
    * Register JSON-LD plugin for Yasr
    */
-  private registerJsonLdPlugin(): void {
+  private registerJsonLdPlugin(Yasr: any): void {
     if (!Yasr) return;
 
-    const JsonLdPlugin = {
-      getIcon: function() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>';
-      },
-      label: "JSON-LD",
-      priority: 5,
-      canHandleResults: function(yasr: any) {
-        return yasr && yasr.results && yasr.results.getBindings;
-      },
-      draw: function(yasr: any) {
+    class JsonLdPlugin {
+      yasr: any;
+      container: HTMLElement;
+      static label = "JSON-LD";
+      static priority = 5;
+      constructor(yasr: any) {
+        this.yasr = yasr;
+        this.container = document.createElement('div');
+      }
+      getIcon() {
+        const span = document.createElement('span');
+        span.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>';
+        return span;
+      }
+      getLabel() {
+        return (this.constructor as any).label;
+      }
+      canHandleResults() {
+        return this.yasr && this.yasr.results && this.yasr.results.getBindings;
+      }
+      draw() {
         try {
-          const jsonLd = this.convertSparqlToJsonLd(yasr.results);
-          const container = yasr.getContainer();
-          
+          const jsonLd = this.convertSparqlToJsonLd(this.yasr.results);
+          const container = this.yasr.getContainer();
           container.innerHTML = '';
-          
           const jsonContainer = document.createElement('div');
           jsonContainer.style.cssText = `
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -429,7 +448,6 @@ export class SparqlInterface {
             white-space: pre-wrap;
             line-height: 1.4;
           `;
-          
           const toolbar = document.createElement('div');
           toolbar.style.cssText = `
             display: flex;
@@ -439,12 +457,10 @@ export class SparqlInterface {
             padding-bottom: 8px;
             border-bottom: 1px solid #dee2e6;
           `;
-          
           const title = document.createElement('span');
           title.textContent = 'JSON-LD Output';
           title.style.fontWeight = 'bold';
           title.style.color = '#495057';
-          
           const copyButton = document.createElement('button');
           copyButton.textContent = 'Copy JSON-LD';
           copyButton.style.cssText = `
@@ -456,7 +472,6 @@ export class SparqlInterface {
             font-size: 11px;
             cursor: pointer;
           `;
-          
           copyButton.onclick = function() {
             navigator.clipboard.writeText(JSON.stringify(jsonLd, null, 2)).then(() => {
               copyButton.textContent = 'Copied!';
@@ -465,93 +480,115 @@ export class SparqlInterface {
               }, 1500);
             });
           };
-          
           toolbar.appendChild(title);
           toolbar.appendChild(copyButton);
-          
-          const jsonContent = document.createElement('div');
-          jsonContent.textContent = JSON.stringify(jsonLd, null, 2);
-          jsonContent.style.color = '#212529';
-          
           jsonContainer.appendChild(toolbar);
-          jsonContainer.appendChild(jsonContent);
+          const pre = document.createElement('pre');
+          pre.textContent = JSON.stringify(jsonLd, null, 2);
+          jsonContainer.appendChild(pre);
           container.appendChild(jsonContainer);
-          
-          return jsonContainer;
-        } catch (error) {
-          console.error('Error rendering JSON-LD:', error);
-          const errorDiv = document.createElement('div');
-          errorDiv.textContent = `Error generating JSON-LD: ${(error as Error).message}`;
-          errorDiv.style.color = 'red';
-          errorDiv.style.padding = '16px';
-          yasr.getContainer().appendChild(errorDiv);
-          return errorDiv;
+        } catch (e) {
+          console.error("Failed to draw JSON-LD plugin", e);
         }
-      },
-      convertSparqlToJsonLd: function(results: any): any {
-        return { "@context": {}, "@graph": [] };
       }
-    };
-    
-    if (Yasr.plugins) {
-      (Yasr.plugins as any).jsonld = JsonLdPlugin;
+      convertSparqlToJsonLd(results: any) {
+        // Basic conversion logic, can be expanded
+        const bindings = results.getBindings();
+        const context: any = {};
+        results.getVariables().forEach((variable: string) => {
+          context[variable] = `ex:${variable}`;
+        });
+        const graph = bindings.map((binding: any) => {
+          const obj: any = {};
+          for (const key in binding) {
+            obj[key] = binding[key].value;
+          }
+          return obj;
+        });
+        return {
+          "@context": context,
+          "@graph": graph
+        };
+      }
+      destroy() {
+        // Clean up if needed
+      }
     }
+    Yasr.registerPlugin("JsonLd", JsonLdPlugin);
   }
 
   /**
    * Register Turtle plugin for Yasr
    */
-  private registerTurtlePlugin(): void {
+  private registerTurtlePlugin(Yasr: any): void {
     if (!Yasr) return;
 
-    const TurtlePlugin = {
-      getIcon: function() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>';
-      },
-      label: "Turtle",
-      priority: 4,
-      canHandleResults: function(yasr: any) {
-        return yasr && yasr.results && yasr.results.getBindings;
-      },
-      draw: function(yasr: any) {
-        const turtle = "# Turtle output placeholder";
-        const container = yasr.getContainer();
-        container.innerHTML = `<pre style="font-family: monospace; padding: 16px;">${turtle}</pre>`;
-        return container.firstChild;
+    class TurtlePlugin {
+      yasr: any;
+      container: HTMLElement;
+      static label = "Turtle";
+      static priority = 4;
+      constructor(yasr: any) {
+        this.yasr = yasr;
+        this.container = document.createElement('div');
       }
-    };
-    
-    if (Yasr.plugins) {
-      (Yasr.plugins as any).turtle = TurtlePlugin;
+      getIcon() {
+        const span = document.createElement('span');
+        span.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>';
+        return span;
+      }
+      getLabel() {
+        return (this.constructor as any).label;
+      }
+      canHandleResults() {
+        return this.yasr && this.yasr.results && this.yasr.results.getBindings;
+      }
+      draw() {
+        const container = this.yasr.getContainer();
+        container.innerHTML = `<pre>${this.yasr.results.turtle}</pre>`;
+      }
+      destroy() {
+        // Clean up if needed
+      }
     }
+    Yasr.registerPlugin("Turtle", TurtlePlugin);
   }
 
   /**
-   * Register TriG plugin for Yasr
+   * Register Trig plugin for Yasr
    */
-  private registerTrigPlugin(): void {
+  private registerTrigPlugin(Yasr: any): void {
     if (!Yasr) return;
 
-    const TrigPlugin = {
-      getIcon: function() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/><path d="M12,12H16V14H12V12M12,16H16V18H12V16Z"/></svg>';
-      },
-      label: "TriG",
-      priority: 3,
-      canHandleResults: function(yasr: any) {
-        return yasr && yasr.results && yasr.results.getBindings;
-      },
-      draw: function(yasr: any) {
-        const trig = "# TriG output placeholder";
-        const container = yasr.getContainer();
-        container.innerHTML = `<pre style="font-family: monospace; padding: 16px;">${trig}</pre>`;
-        return container.firstChild;
+    class TrigPlugin {
+      yasr: any;
+      container: HTMLElement;
+      static label = "TriG";
+      static priority = 3;
+      constructor(yasr: any) {
+        this.yasr = yasr;
+        this.container = document.createElement('div');
       }
-    };
-    
-    if (Yasr.plugins) {
-      (Yasr.plugins as any).trig = TrigPlugin;
+      getIcon() {
+        const span = document.createElement('span');
+        span.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/><path d="M12,12H16V14H12V12M12,16H16V18H12V16Z"/></svg>';
+        return span;
+      }
+      getLabel() {
+        return (this.constructor as any).label;
+      }
+      canHandleResults() {
+        return this.yasr && this.yasr.results && this.yasr.results.getBindings;
+      }
+      draw() {
+        const container = this.yasr.getContainer();
+        container.innerHTML = `<pre>${this.yasr.results.trig}</pre>`;
+      }
+      destroy() {
+        // Clean up if needed
+      }
     }
+    Yasr.registerPlugin("Trig", TrigPlugin);
   }
 
   /**

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test YASGUI Plugin</title>
+  <link rel="stylesheet" href="https://unpkg.com/@zazuko/yasgui/build/yasgui.min.css" />
+  <script src="https://unpkg.com/@zazuko/yasgui/build/yasgui.min.js"></script>
+</head>
+<body>
+  <div id="yasgui" style="height: 100vh;"></div>
+
+  <script>
+    // Test the plugin registration similar to the working example
+    class TestPlugin {
+      constructor(yasr) {
+        this.yasr = yasr;
+        this.container = document.createElement('div');
+        this.container.innerHTML = `<div style="padding: 20px; background: #f0f0f0;">Test Plugin Working!</div>`;
+      }
+
+      draw() {
+        console.log('Test Plugin draw called');
+        this.yasr.resultsEl.appendChild(this.container);
+      }
+
+      canHandleResults() {
+        console.log('Test Plugin canHandleResults called');
+        return true; // Always show this plugin for testing
+      }
+
+      getIcon() {
+        const iconElement = document.createElement('span');
+        iconElement.innerHTML = '🧪';
+        iconElement.style.fontSize = '16px';
+        return iconElement;
+      }
+
+      getLabel() {
+        return 'Test';
+      }
+
+      destroy() {
+        if (this.container && this.container.parentNode) {
+          this.container.parentNode.removeChild(this.container);
+        }
+      }
+    }
+
+    // Register the test plugin
+    Yasr.registerPlugin('Test', TestPlugin);
+
+    // Initialize Yasgui
+    const yasgui = new Yasgui(document.getElementById('yasgui'));
+
+    // Set a simple test query
+    yasgui.getTab().yasqe.setValue('SELECT * WHERE { ?s ?p ?o } LIMIT 5');
+
+    console.log('Test plugin registered and Yasgui initialized');
+  </script>
+</body>
+</html>
